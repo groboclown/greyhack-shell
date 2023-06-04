@@ -36,6 +36,11 @@ import json
 FILE_VERSION = 1
 TEMP_DIR = "~/.tmp"
 
+def debug(msg: str, **args: Any) -> None:
+    """Debug message."""
+    # sys.stderr.write("[DEBUG] " + (msg.format(**args)) + "\n")
+    pass
+
 # -----------------------------------------------
 # Low level data converters
 def mk_uint8(value: int) -> bytes:
@@ -99,6 +104,7 @@ def mk_block_header() -> bytes:
 
 def mk_block_string(index: int, text: str) -> bytes:
     """Create a block with a referencable, indexed string."""
+    debug("Adding string {i}: '{txt}'", i=index, txt=text)
     try:
         encoded = text.encode('ascii')
         return mk_chunk(BLOCK_ASCII, mk_ref(index) + mk_uint16(len(text)) + encoded)
@@ -118,6 +124,7 @@ def mk_block_rel_home(index: int, text: str) -> bytes:
     """Create a block that goes into the string pool, but whose value is a path
     that is relative to the user's home directory."""
     # File paths are always ascii-encoded.
+    debug("Adding rel home string {i}: '{txt}'", i=index, txt=text)
     return mk_chunk(BLOCK_REL_HOME, mk_ref(index) + mk_uint16(len(text)) + text.encode('ascii'))
 
 
@@ -174,6 +181,12 @@ def mk_block_group(username_index: int, group_index: int) -> bytes:
 
 def mk_block_build(source_index: int, target_dir_index: int, target_file_name_index: int) -> bytes:
     """Create a build block."""
+    debug(
+        "build block: src={src}, target dir={td}, target name={tn}",
+        src=source_index,
+        td=target_dir_index,
+        tn=target_file_name_index,
+    )
     return mk_chunk(
         BLOCK_BUILD,
         mk_ref(source_index) + mk_ref(target_dir_index) + mk_ref(target_file_name_index),
@@ -387,6 +400,9 @@ class Blocks:
 
 def get_content_with_includes(contents: str, include_paths: Sequence[str], loaded: Optional[Set[str]] = None) -> str:
     """Special content parsing to allow pulling files from the include paths."""
+    # FIXME Change the include to instead just use "import_code", but
+    # search the loaded files in the include_paths (figure out something smart).
+    # The replacement for the include path is fine.
     ret = ""
     rld: Set[str] = loaded or set()
     for line in contents.splitlines():

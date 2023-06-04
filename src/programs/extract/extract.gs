@@ -32,7 +32,7 @@ end function
 
 
 DEBUG = function(msg)
-    print("<color=#707070> [DEBUG] " + msg + "</color>")
+    // print("<color=#707070> [DEBUG] " + msg + "</color>")
 end function
 INFO = function(msg)
     print("<color=#a0a0a0>" + msg + "</color>")
@@ -98,7 +98,6 @@ CompTarFile.read6 = function()
     ret = self.base64.indexOf(val)
     if ret < 0 or ret >= 64 then exit("Bad encoding at position " + self.read_pos)
     self.read_pos = self.read_pos + 1
-    // print "6 < " + ret
     return ret
 end function
 
@@ -121,14 +120,12 @@ CompTarFile.UInt8 = function()
         self.remaining_bits = 16
         // self.last_data = bitwise("&", x, 65535)
         self.last_data = x % 65536
-        // print "8 < " + y
         return y
     end if
     if self.remaining_bits == 8 then
         self.remaining_bits = 0
         // y = bitwise("&", self.last_data, 255)
         y = self.last_data % 256
-        // print "8 < " + y
         return y
     end if
     if self.remaining_bits == 16 then
@@ -137,7 +134,6 @@ CompTarFile.UInt8 = function()
         // self.last_data = bitwise("&", self.last_data, 255)
         self.last_data = self.last_data % 256
         self.remaining_bits = 8
-        // print "8 < " + x
         return x
     end if
     exit("Unexpected bit count remaining: " + self.remaining_bits)
@@ -150,12 +146,9 @@ CompTarFile.UInt16 = function()
         self.remaining_bits = 0
         // y = bitwise("&", self.last_data, 65535)
         y = self.last_data % 65536
-        // print "16 < " + y
         return y
     end if
-    // print "16 >>"
     y = (self.UInt8 * 256) + self.UInt8
-    // print "16 << " + y
     return y
 end function
 
@@ -197,7 +190,6 @@ end function
 CompTarFile.Skip = function(bytes)
     if bytes > 0 then
         for _ in range(0, bytes - 1)
-            // print(" -- skip")
             self.UInt8
         end for
     end if
@@ -280,7 +272,7 @@ blockFileFunc = function(tar)
         if out == null then exit("Failed to create file " + base_dir + "/" + name)
     end if
     out.set_content(contents)
-    INFO("- created file [" + out + "] with " + contents.len + " characters")
+    INFO("- created file [" + base_dir + "/" + name + "] with " + contents.len + " characters")
 end function
 
 // chmod
@@ -345,9 +337,12 @@ end function
 // exist first.  The file is copied to the temporary directory so that
 // we know the name of the compiled-to file.
 blockBuildFunc = function(tar)
-    source_fqn = tar.Source
+    source_fqn = tar.String
+    DEBUG("build source: " + source_fqn + ";")
     target_path_fqn = tar.String
+    DEBUG("build target dir: " + target_path_fqn + ";")
     target_name = tar.String
+    DEBUG("build target name: " + target_name + ";")
 
     src_out = GetFile(source_fqn)
     if src_out == null then exit("No file " + source_fqn + " to build.")
@@ -444,7 +439,7 @@ else
         exit("Could not find file " + params[0])
     end if
 end if
-print("Uncompressing " + source_file.path)
+INFO("Uncompressing " + source_file.path)
 
 while source_file.HasMore
     // Get the kind of block
