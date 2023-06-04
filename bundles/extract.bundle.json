@@ -1,0 +1,18 @@
+[
+    {
+        "type": "about",
+        "description": [
+            "The extractor tool."
+        ]
+    },
+    {
+        "type": "file",
+        "local": "../src/programs/extract/extract.gs",
+        "file": "~/src/programs/extract/extract.src"
+    },
+    {
+        "type": "build",
+        "source": "~/src/programs/extract/extract.src",
+        "target": "~/bin/extract"
+    }
+]

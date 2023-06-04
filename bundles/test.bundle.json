@@ -1,0 +1,15 @@
+[
+    {
+        "type": "about",
+        "description": [
+            "A simple little test bundle.",
+            "This will add in extra items than what appears directly in ",
+            "this file, as a helper."
+        ]
+    },
+    {
+        "type": "file",
+        "file": "~/parent/some-file.txt",
+        "contents": "the contents"
+    }
+]
