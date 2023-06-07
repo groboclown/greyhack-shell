@@ -1,0 +1,146 @@
+[
+    {
+        "type": "about",
+        "description": "A fancy shell replacement.  Kind of like Midnight Commander.",
+        "notes": [
+            "Order of files is important."
+        ]
+    },
+    {
+        "type": "file",
+        "local": "../src/libs/format/formatted-str.gs",
+        "file": "~/src/libs/format/formatted-str.gs"
+    },
+    {
+        "type": "file",
+        "local": "../src/libs/errors.gs",
+        "file": "~/src/libs/errors.gs"
+    },
+    {
+        "type": "file",
+        "local": "../src/libs/tests.gs",
+        "file": "~/src/libs/tests.gs"
+    },
+    {
+        "type": "file",
+        "local": "../src/libs/format/formatted-str-test.gs",
+        "file": "~/src/libs/format/formatted-str-test.gs"
+    },
+    {
+        "type": "exec",
+        "cmd": "~/bin/gscc",
+        "arguments": [
+            "-I", "~/src/libs",
+            "-T",
+            "~/src/libs/format/formatted-str-test.gs"
+        ]
+    },
+    {
+        "type": "file",
+        "local": "../src/libs/files/os.gs",
+        "file": "~/src/libs/files/os.gs"
+    },
+    {
+        "type": "file",
+        "local": "../src/libs/files/paths.gs",
+        "file": "~/src/libs/files/paths.gs"
+    },
+    {
+        "type": "file",
+        "local": "../src/libs/files/star-glob.gs",
+        "file": "~/src/libs/files/star-glob.gs"
+    },
+    {
+        "type": "file",
+        "local": "../src/libs/files/star-glob-test.gs",
+        "file": "~/src/libs/files/star-glob-test.gs"
+    },
+    {
+        "type": "exec",
+        "cmd": "~/bin/gscc",
+        "arguments": [
+            "-I", "~/src/libs",
+            "-T",
+            "~/src/libs/files/star-glob-test.gs"
+        ]
+    },
+    {
+        "type": "file",
+        "local": "../src/libs/files/json.gs",
+        "file": "~/src/libs/files/json.gs"
+    },
+    {
+        "type": "file",
+        "local": "../src/libs/files/json-test.gs",
+        "file": "~/src/libs/files/json-test.gs"
+    },
+    {
+        "type": "exec",
+        "cmd": "~/bin/gscc",
+        "arguments": [
+            "-I", "~/src/libs",
+            "-T",
+            "~/src/libs/files/json-test.gs"
+        ]
+    },
+    {
+        "type": "file",
+        "local": "../src/programs/mc/fd.gs",
+        "file": "~/src/programs/mc/fd.gs"
+    },
+    {
+        "type": "file",
+        "local": "../src/programs/mc/session.gs",
+        "file": "~/src/programs/mc/session.gs"
+    },
+    {
+        "type": "file",
+        "local": "../src/programs/mc/parser.gs",
+        "file": "~/src/programs/mc/parser.gs"
+    },
+    {
+        "type": "file",
+        "local": "../src/programs/mc/parser-test.gs",
+        "file": "~/src/programs/mc/parser-test.gs"
+    },
+    {
+        "type": "exec",
+        "cmd": "~/bin/gscc",
+        "arguments": [
+            "-I", "~/src/libs",
+            "-I", "~/src/programs/mc",
+            "-T",
+            "~/src/programs/mc/parser-test.gs"
+        ]
+    },
+    {
+        "type": "file",
+        "local": "../src/programs/mc/ui.gs",
+        "file": "~/src/programs/mc/ui.gs"
+    },
+    {
+        "type": "file",
+        "local": "../src/programs/mc/cmdlet.gs",
+        "file": "~/src/programs/mc/cmdlet.gs"
+    },
+    {
+        "type": "file",
+        "local": "../src/programs/mc/cmdlets/hello.gs",
+        "file": "~/src/programs/mc/cmdlets/hello.gs"
+    },
+    {
+        "type": "file",
+        "local": "../src/programs/mc/main.gs",
+        "file": "~/src/programs/mc/main.src"
+    },
+    {
+        "type": "exec",
+        "cmd": "~/bin/gscc",
+        "arguments": [
+            "-I", "~/src/programs/mc",
+            "-I", "~/src/libs",
+            "-o", "~/bin/mc",
+            "~/src/programs/mc/main.src"
+        ]
+    }
+]

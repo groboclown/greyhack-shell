@@ -26,8 +26,9 @@ end function
 Compile = function(source_file, outdir)
     return get_shell.build(source_file, outdir)
 end function
-LaunchProgram = function(program)
-    return get_shell.launch(program)
+LaunchProgram = function(cmd, args)
+    if args == null then args = []
+    return get_shell.launch(cmd, args.join(" "))
 end function
 
 
@@ -45,6 +46,10 @@ CompTarFile = {}
 
 // CompTarFile.NewFile() create a new CompTarFile instance from a file.
 CompTarFile.NewFile = function(name)
+    if name[0] != "/" then
+        // current_path just points to the program's directory.
+        name = home_dir + "/" + name
+    end if
     source_file = GetFile(name)
     if source_file == null or source_file.is_folder then return null
     ret = new CompTarFile
@@ -379,9 +384,68 @@ blockTestFunc = function(tar)
     if res != "" and res != null then exit("Failed building " + name + ": " + res)
     out = GetFile(test_exec)
     if out == null then exit("Did not build " + source_fqn)
-    res = LaunchProgram(test_exec)
+    res = LaunchProgram(test_exec, null)
     if res != 1 then exit("Test " + name + " failed")
 end function
+
+// launch
+// Launch a process.
+blockLaunchFunc = function(tar)
+    arg_count = tar.UInt8
+    cmd = tar.String
+    args = []
+    for _ in range(1, arg_count-1)
+        args.push(tar.String)
+    end for
+    res = LaunchProgram(cmd, args)
+    if res != 1 then exit("Failed running program: " + res)
+end function
+
+// copy
+blockCopyFunc = function(tar)
+    source_fqn = tar.String
+    DEBUG("copy source: " + source_fqn + ";")
+    target_path_fqn = tar.String
+    DEBUG("copy target dir: " + target_path_fqn + ";")
+    target_name = tar.String
+    DEBUG("copy target name: " + target_name + ";")
+
+    src = GetFile(source_fqn)
+    if src == null or src.is_folder then exit("No such file: " + source_fqn)
+    res = src.copy(target_path_fqn, target_name)
+    if res != 1 then exit("Failed to copy [" + source_fqn + "] to [" + target_path_fqn + "/" + target_name + "]")
+    INFO("- copied [" + source_fqn + "] to [" + target_path_fqn + "/" + target_name + "]")
+end function
+
+// move
+blockMoveFunc = function(tar)
+    source_fqn = tar.String
+    DEBUG("move source: " + source_fqn + ";")
+    target_path_fqn = tar.String
+    DEBUG("move target dir: " + target_path_fqn + ";")
+    target_name = tar.String
+    DEBUG("move target name: " + target_name + ";")
+
+    src = GetFile(source_fqn)
+    if src == null or src.is_folder then exit("No such file: " + source_fqn)
+    res = src.move(target_path_fqn, target_name)
+    if res != 1 then exit("Failed to move [" + source_fqn + "] to [" + target_path_fqn + "/" + target_name + "]")
+    INFO("- moved [" + source_fqn + "] to [" + target_path_fqn + "/" + target_name + "]")
+end function
+
+// delete
+blockDeleteFunc = function(tar)
+    path_fqn = tar.String
+    DEBUG("delete file: " + path_fqn + ";")
+
+    f = GetFile(path_fqn)
+    if f == null or f.is_folder then exit("No such file: " + path_fqn)
+    res = f.delete
+    if res != 1 then exit("Failed to delete [" + path_fqn + "]")
+
+    INFO("deleted file [" + path_fqn + "]")
+end function
+
 
 BLOCK_HANDLERS = {
     // BLOCK_HEADER = 0
@@ -422,6 +486,19 @@ BLOCK_HANDLERS = {
 
     // BLOCK_TEST = 81
     81: @blockTestFunc,
+
+    // BLOCK_LAUNCH = 82
+    82: @blockLaunchFunc,
+
+    // BLOCK_COPY = 83
+    83: @blockCopyFunc,
+
+    // BLOCK_MOVE = 84
+    84: @blockMoveFunc,
+
+    // BLOCK_DELETE = 85
+    85: @blockDeleteFunc,
+
 }
 
 

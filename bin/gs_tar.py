@@ -32,6 +32,7 @@ import os
 import sys
 import base64
 import json
+import re
 
 FILE_VERSION = 1
 TEMP_DIR = "~/.tmp"
@@ -94,6 +95,10 @@ BLOCK_NEW_USER = 40
 BLOCK_NEW_GROUP = 41
 BLOCK_BUILD = 80
 BLOCK_TEST = 81
+BLOCK_LAUNCH = 82
+BLOCK_COPY = 83
+BLOCK_MOVE = 84
+BLOCK_DELETE = 85
 
 
 def mk_block_header() -> bytes:
@@ -201,6 +206,37 @@ def mk_block_test(test_index: int, name_index: str, contents_index: str) -> byte
     )
 
 
+def mk_block_launch(argument_index: Sequence[int]) -> bytes:
+    """Create a launch program block."""
+    if len(argument_index) < 1:
+        raise RuntimeError(f"Launch program must have at least 1 argument, found {len(argument_index)}")
+    data = mk_uint8(len(argument_index))
+    for arg in argument_index:
+        data += mk_ref(arg)
+    return mk_chunk(BLOCK_LAUNCH, data)
+
+
+def mk_block_copy(source_index: int, target_path_idx: int, target_name: int) -> bytes:
+    """Create a copy a file block."""
+    return mk_chunk(
+        BLOCK_COPY,
+        mk_ref(source_index) + mk_ref(target_path_idx) + mk_ref(target_name),
+    )
+
+
+def mk_block_move(source_index: int, target_path_idx: int, target_name: int) -> bytes:
+    """Create a move a file block."""
+    return mk_chunk(
+        BLOCK_MOVE,
+        mk_ref(source_index) + mk_ref(target_path_idx) + mk_ref(target_name),
+    )
+
+
+def mk_block_delete(file_index: int) -> bytes:
+    """Create a delete a file block."""
+    return mk_chunk(BLOCK_DELETE, mk_ref(file_index))
+
+
 class Blocks:
     """Stores the blocks"""
 
@@ -215,6 +251,7 @@ class Blocks:
         self._user_blocks: List[bytes] = []
         self._group_blocks: List[bytes] = []
         self._other_blocks: List[bytes] = []
+        self.include_dir = "~/src/include"
     
     def assemble(self) -> bytes:
         """Final assembly of the blocks."""
@@ -380,6 +417,41 @@ class Blocks:
         contents_idx = self._add_string(contents)
         self._test_blocks.append(mk_block_test(test_idx, name_idx, contents_idx))
     
+    def add_launch(self, args: Sequence[str]) -> None:
+        """Create a launch block."""
+        # Added to the 'build' set of instructions.
+        # Arguments are considered paths, but don't force them to be normalized.
+        arg_idx: List[int] = [self._add_path(a) for a in args]
+        self._build_blocks.append(mk_block_launch(arg_idx))
+    
+    def add_copy(self, source: str, target: str) -> None:
+        """Create a copy file block."""
+        # Added to the 'build' set of instructions.
+        source_idx = self._add_path(Blocks._normalize(source))
+        target_p, target_n = Blocks._split(target)
+        # Ensure the target parent directory exists
+        self.add_folder(target_p)
+        dirname_idx = self._add_path(target_p)
+        fname_idx = self._add_string(target_n)
+        self._build_blocks.append(mk_block_copy(source_idx, dirname_idx, fname_idx))
+    
+    def add_move(self, source: str, target: str) -> None:
+        """Create a move file block."""
+        # Added to the 'build' set of instructions.
+        source_idx = self._add_path(Blocks._normalize(source))
+        target_p, target_n = Blocks._split(target)
+        # Ensure the target parent directory exists
+        self.add_folder(target_p)
+        dirname_idx = self._add_path(target_p)
+        fname_idx = self._add_string(target_n)
+        self._build_blocks.append(mk_block_move(source_idx, dirname_idx, fname_idx))
+    
+    def add_delete(self, path: str) -> None:
+        """Create delete a file or folder block."""
+        # Added to the 'build' set of instructions.
+        path_idx = self._add_path(Blocks._normalize(path))
+        self._build_blocks.append(mk_block_delete(path_idx))
+
     @staticmethod
     def _split(name: str) -> Tuple[str, str]:
         name = Blocks._normalize(name)
@@ -398,30 +470,35 @@ class Blocks:
         return name
 
 
-def get_content_with_includes(contents: str, include_paths: Sequence[str], loaded: Optional[Set[str]] = None) -> str:
-    """Special content parsing to allow pulling files from the include paths."""
-    # FIXME Change the include to instead just use "import_code", but
-    # search the loaded files in the include_paths (figure out something smart).
-    # The replacement for the include path is fine.
+IMPORT_RE = re.compile(r'^\s*import_code\s*\(\s*"\${?INC}?/([^"]+)"\s*\)\s*$')
+
+
+def get_content_with_includes(contents: str, include_dir: str) -> str:
+    """Special content parsing to allow pulling files from the include dir.
+    
+    This auto-replaces paths that start with a '${INC}/' or '$INC/' with the
+    include directory.  The include directory can start with the home directory
+    reference ("~/")
+    """
+    while include_dir and include_dir[-1] == "/":
+        include_dir = include_dir[:-1]
+    if include_dir:
+        if include_dir.startswith("~/"):
+            # This causes a compile error in the generated code.
+            include_dir_src = f'home_dir + "{include_dir[1:]}/'
+        else:
+            include_dir_src = f'"{include_dir}'
+    else:
+        include_dir_src = '"/'
     ret = ""
-    rld: Set[str] = loaded or set()
     for line in contents.splitlines():
         # Strip each line, to help minimize it.
         line = line.strip()
         # Do not skip blank lines.  It's really useful to keep line numbers the same.
-        if line.startswith("//#include "):
-            rel_file = line.split(" ", 1)
-            if len(rel_file) > 1:
-                for path in include_paths:
-                    fqn = os.path.join(path, rel_file[1])
-                    if fqn in rld:
-                        # Already included; don't include again.
-                        break
-                    rld.add(fqn)
-                    if os.path.isfile(fqn):
-                        with open(fqn, "r", encoding="utf-8") as fis:
-                            line = get_content_with_includes(fis.read(), include_paths, rld)
-                        break
+        mtc = IMPORT_RE.match(line)
+        if mtc:
+            # Matched up a include-dir path.
+            line = f'import_code({include_dir_src}{mtc.group(1)}")'
         if line.startswith("//"):
             # Strip out comments that are easy to spot.
             line = ""
@@ -433,7 +510,6 @@ def parse_block_cmd(
         blocks: Blocks,
         value: Dict[str, Any],
         context_dir: str,
-        include_folders: List[str],
 ) -> None:
     """Create a block command from a json entry.
     
@@ -441,20 +517,7 @@ def parse_block_cmd(
     and be ordered correctly.
     """
     cmd = value.get('type')
-    if cmd == 'include':
-        one_folder = value.get('dir')
-        multiple_folders = value.get('paths')
-        if isinstance(one_folder, str):
-            fqn = os.path.join(context_dir, one_folder)
-            if fqn not in include_folders:
-                include_folders.append(os.path.join(context_dir, one_folder))
-        if isinstance(multiple_folders, (tuple, list)):
-            for inc in multiple_folders:
-                if isinstance(inc, str):
-                    fqn = os.path.join(context_dir, inc)
-                    if fqn not in include_folders:
-                        include_folders.append(inc)
-    elif cmd == 'folder':
+    if cmd == 'folder':
         blocks.add_folder(str(value['name']))
     elif cmd == 'file':
         file_name = str(value['file'])
@@ -464,7 +527,7 @@ def parse_block_cmd(
             with open(src_file, 'r', encoding='utf-8') as fis:
                 contents = fis.read()
         if value.get('is-source') == True:
-            contents = get_content_with_includes(contents, include_folders)
+            contents = get_content_with_includes(contents, blocks.include_dir)
         blocks.add_file(
             file_name,
             contents,
@@ -493,17 +556,43 @@ def parse_block_cmd(
         blocks.add_chgroup(file_name, str(value['group']), recursive)
     elif cmd == 'build':
         blocks.add_build(str(value['source']), str(value['target']))
+    elif cmd == 'source':
+        # A combined operation.
+        source_name = str(value['file'])
+        contents = value.get('contents')
+        if not contents:
+            src_file = os.path.join(context_dir, value['local'])
+            with open(src_file, 'r', encoding='utf-8') as fis:
+                contents = fis.read()
+        # It is always source.
+        contents = get_content_with_includes(contents, blocks.include_dir)
+        blocks.add_file(
+            source_name,
+            contents,
+        )
+        blocks.add_build(source_name, str(value['target']))
     elif cmd == 'test':
         contents = value.get('contents')
         if not contents:
             src_file = os.path.join(context_dir, value['local'])
             with open(src_file, 'r', encoding='utf-8') as fis:
                 contents = fis.read()
-        contents = get_content_with_includes(contents, include_folders)
+        contents = get_content_with_includes(contents, blocks.include_dir)
         blocks.add_test(str(value['name']), contents)
+    elif cmd in ('launch', 'exec', 'run'):
+        args = [value['cmd'], *value.get('arguments', ())]
+        blocks.add_launch(args)
+    elif cmd in ('copy', 'cp'):
+        blocks.add_copy(value['from'], value['to'])
+    elif cmd == ('move', 'mv', 'rename', 'ren'):
+        blocks.add_move(value['from'], value['to'])
+    elif cmd == ('delete', 'del', 'rm'):
+        blocks.add_delete(value['path'])
     elif cmd == 'about':
-        # ignore it
-        pass
+        # Ignore most of what's in this.
+        include = value.get('include-dir')
+        if isinstance(include, str) and include:
+            blocks.include_dir = include
     else:
         raise ValueError(f'unknown block type {cmd}')
 
@@ -533,9 +622,8 @@ def parse_json(data: Any, context_dir: str) -> bytes:
     # Must always exist
     blocks.add_folder(TEMP_DIR)
 
-    include_folders: List[str] = []
     for block in data:
-        parse_block_cmd(blocks, block, context_dir, include_folders)
+        parse_block_cmd(blocks, block, context_dir)
     
     return blocks.assemble()
 

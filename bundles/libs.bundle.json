@@ -1,0 +1,18 @@
+[
+    {
+        "type": "about",
+        "description": "Import the libraries and test them.",
+        "include-dir": "~/src/libs"
+    },
+    {
+        "type": "file",
+        "local": "../src/libs/files/star-glob.gs",
+        "file": "~/src/libs/files/star-glob.gs",
+        "is-source": true
+    },
+    {
+        "type": "test",
+        "name": "star-glob",
+        "local": "../src/libs/files/star-glob-test.gs"
+    }
+]

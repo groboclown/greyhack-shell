@@ -16,7 +16,7 @@
 //
 //     if t.AssertTrue(false) then return
 
-//#include errors.gs
+//#require errors.gs
 
 T = {}
 T.depth = 0
@@ -28,34 +28,44 @@ T.T.New = function(errorLogger, name)
     ret = new T.T
     ret.name = name
     ret.errors = []
-    ret.logger = errorLogger
+    ret.logger = @errorLogger
     ret.depth = T.depth
     return ret
 end function
 
 // T.T.SubTest Run a function as a sub-test.  Returns true if it fails.
 T.T.SubTest = function(name, testFunc)
-    subErrs = T.RunTest(testFunc, name, sub.depth)
+    subErrs = T.RunTest(testFunc, name, self.depth + 1)
     self.errors = self.errors + subErrs
     return subErrs.len > 0
 end function
 
 
 // T.T.Fail Reports a failure
-T.T.Fail = function(text=null)
+T.T.Fail = function(text=null, extra=null)
     if text == null then
         text = "failure"
     end if
-    err = { "test": ret.name, "failure": text }
+    err = { "test": self.name, "failure": text }
+    if extra != null then
+        err = err + extra
+    end if
+    if globals.hasIndex("ErrorLib") then
+        e = ErrorLib.Error.New(ErrorLib.Message.New(text, err))
+        self.errors.push(e)
+        msg = e.Text
+    else
+        msg = text
+    end if
     self.errors.push(err)
-    self.logger(text)
+    self.logger(msg)
     return true
 end function
 
 // T.T.AssertTrue Reports a failure if the first argument is not true
 T.T.AssertTrue = function(value, text=null)
     if value != true then
-        self.Fail(text)
+        self.Fail(text, {"value": value})
         return true
     end if
     return false
@@ -64,25 +74,41 @@ end function
 // T.T.AssertFalse
 T.T.AssertFalse = function(value, text=null)
     if value != false then
-        self.Fail(text)
-        return true
+        return self.Fail(text, {"value": value})
     end if
     return false
+end function
+
+T.T._text = function(text)
+    if text != null then
+        t = str(text)
+        if t.len > 0 then return "; " + t
+    end if
+    return ""
 end function
 
 // T.T.AssertEqual
 T.T.AssertEqual = function(actual, expected, text=null)
     if actual != expected then
-        self.Fail("expected " + expected + ", found " + actual)
-        return true
+        return self.Fail("expected {expected}, found {actual}{text}", {"expected": expected, "actual": actual, "text": self._text(text)})
     end if
     return false
+end function
+
+// T.T.AssertEqualAny
+T.T.AssertEqualAny = function(actual, expectedList, text=null)
+    for expected in expectedList
+        if actual == expected then
+            return false
+        end if
+    end for
+    return self.Fail("expected one of {expected}, found {actual}{text}", {"expected": expectedList, "actual": actual, "text": self._text(text)})
 end function
 
 // T.T.AssertNotEqual
 T.T.AssertNotEqual = function(actual, expected, text=null)
     if actual == expected then
-        self.Fail("found " + expected)
+        self.Fail("found {expected}{text}", {"expected": expected, "actual": actual, "text": self._text(text)})
         return true
     end if
     return false
@@ -91,7 +117,7 @@ end function
 // T.T.AssertNull
 T.T.AssertNull = function(actual, text=null)
     if actual != null then
-        self.Fail("expected null, but found " + actual)
+        self.Fail("expected null, found {actual}{text}", {"expected": null, "actual": actual, "text": self._text(text)})
         return true
     end if
     return false
@@ -100,8 +126,75 @@ end function
 // T.T.AssertNotNull
 T.T.AssertNotNull = function(actual, text=null)
     if actual == null then
-        self.Fail("expected not null value")
+        self.Fail("expected a non-null value{text}", {"actual": actual, "text": self._text(text)})
         return true
+    end if
+    return false
+end function
+
+// T.T.AssertDeepEqual
+T.T.AssertDeepEqual = function(actual, expected, text=null)
+    seen = []
+    hasSeen = function(val)
+        for v in seen
+            if v == val then return true
+        end for
+        return false
+    end function
+
+    deepUnequal = function(a1, e1)
+        // quick checks
+        if @e1 == null and @a1 == null then return false
+        if @e1 == null and @a1 != null then return true
+        if @e1 != null and @a1 == null then return true
+
+        // Get simple type checks out of the way.
+        if @e1 isa funcRef then return not (@a1 isa funcRef and @a1 == @e1)
+        if @a1 isa funcRef then return true
+        // function references are finished, so we don't need @ anymore.
+        if e1 isa string then return not (a1 isa string and e1 == a1)
+        if a1 isa string then return true
+        if e1 isa number then return not (a1 isa number and (e1 - a1 < 0.0001) and (e1 - a1 > -0.0001))
+        if a1 isa number then return true
+
+        // If it's been seen
+        if hasSeen(e1) then return false
+
+        if e1 isa map then
+            if not a1 isa map then return true
+            if e1.len != a1.len then return true
+            seen.push(e1)
+
+            // Because they have the same key count, we know that looping
+            // over all the keys in one will be checking that the other doesn't
+            // have more keys.
+            for k in e1.indexes
+                if not a1.hasIndex(k) then return true
+                // skip the class checks.
+                if k == "__isa" then continue
+                if deepUnequal(e1[k], a1[k]) then return true
+            end for
+            // All the keys and their values match up.
+            return false
+        end if
+        if e1 isa list then
+            if not a1 isa list then return true
+            if e1.len != a1.len then return true
+            seen.push(e1)
+
+            for idx in e1.indexes
+                if deepUnequal(e1[idx], a1[idx]) then return true
+            end for
+            // All the indexes are equal, so they are equal.
+            return false
+        end if
+
+        // Else it's a simple type, and they are !=, so ... they are unequal.
+        return false
+    end function
+
+    if deepUnequal(actual, expected) then
+        return self.Fail("expected {expected}, found {actual}{text}", {"expected": expected, "actual": actual, "text": self._text(text)})
     end if
     return false
 end function
@@ -148,7 +241,10 @@ T.Test = function(text, f)
     T.depth = T.depth + 1
 
     T.Logger.TestStart(initial_depth, text)
-    t = T.T.New(function(err) T.Logger.Error(initial_depth, err) end function, text)
+    errFunc = function(err)
+        T.Logger.Error(initial_depth, err)
+    end function
+    t = T.T.New(@errFunc, text)
     f(t)
     T.Logger.TestEnd(initial_depth, text, t.errors.len <= 0)
 
@@ -164,30 +260,34 @@ T.ConsoleLogger.New = function()
 end function
 
 T.ConsoleLogger.DescribeStart = function(depth, name)
-    print "<color=#404040>" + self.GetIndent(depth) + name + " ...</color>"
+    print "<color=#808080>" + self.GetIndent(depth) + name + " ...</color>"
 end function
 
 T.ConsoleLogger.DescribeEnd = function(depth, name)
 end function
 
 T.ConsoleLogger.TestStart = function(depth, name)
-    print "<color=#006060>" + self.GetIndent(depth) + name + " ...</color>"
+    print "<color=#00ffff>" + self.GetIndent(depth) + name + " ...</color>"
 end function
 
 T.ConsoleLogger.Error = function(depth, err)
-    text = err
-    if err isa map and err["Text"] isa string then
-        text = err["Text"]
+    text = "(unknown error)"
+    if err == null then
+        text = "(null)"
+    if err != null and err isa map and err.hasIndex("Text") then
+        text = str(err.Text)
+    else
+        text = str(err)
     end if
-    print self.GetIndent(depth + 1) + "<color=#800000>Fail</color> - " + text
+    print self.GetIndent(depth + 1) + "<color=#800000>Fail</color> - " + text + "</color>"
 end function
 
 T.ConsoleLogger.TestEnd = function(depth, name, pass)
     indent = self.GetIndent(depth)
     if pass then
-        print "<color=#006060>" + indent + text + " ... <color=#008000>OK!</color>"
+        print "<color=#00a0a0>" + indent + name + " ... <color=#00ff00>OK!</color>"
     else
-        print "<color=#006060>" + indent + text + " ... <color=#800000>Failed</color>"
+        print "<color=#00a0a0>" + indent + name + " ... <color=#ff3030>Failed</color>"
     end if
 end function
 
@@ -204,15 +304,17 @@ T.Logger = T.ConsoleLogger.New()
 
 // RunTests Run all the tests in the global namespace.
 T.RunTests = function(space=null)
+    print("<color #ffff00>=================================================================</color>")
+    print("<color #ffff00>Starting Test Execution</color>")
     if space == null then
         space = globals
     end if
     total = 0
     errors = 0
     for name in space.indexes
-        if name[:4] == "Test" and space[name] isa funcRef then
+        if name[:4] == "Test" and @space[name] isa funcRef then
             total = total + 1
-            res = T.RunTest(space[name], name)
+            res = T.RunTest(@space[name], name)
             errors = errors + res
         end if
     end for
@@ -226,15 +328,18 @@ end function
 // RunTest Run a test function, passed as an argument
 T.RunTest = function(testFunc, name=null, depth=0)
     if name == null then
-        if testFunc isa string then
+        if @testFunc isa string then
             name = testFunc
-            testFunc = globals[name]
+            testFunc = @globals[name]
         else
             name = "test"
         end if
     end if
-    t = T.T.New(function(err) T.Logger.Error(depth, err) end function, name)
-    if testFunc isa funcRef then
+    errLogger = function(err)
+        T.Logger.Error(depth, err)
+    end function
+    t = T.T.New(@errLogger, name)
+    if @testFunc isa funcRef then
         T.Logger.TestStart(depth, name)
         testFunc(t)
         T.Logger.TestEnd(depth, name, t.errors.len <= 0)

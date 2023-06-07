@@ -1,0 +1,20 @@
+[
+    {
+        "type": "about",
+        "description": [
+            "The extractor tool."
+        ]
+    },
+    {
+        "type": "source",
+        "local": "../src/programs/gs-tar/extract.gs",
+        "file": "~/src/programs/gstar/extract.src",
+        "target": "~/bin/extract-tar"
+    },
+    {
+        "type": "source",
+        "local": "../src/programs/gs-tar/gscc.gs",
+        "file": "~/src/programs/gstar/gscc.src",
+        "target": "~/bin/gscc"
+    }
+]

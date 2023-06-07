@@ -1,0 +1,21 @@
+[
+    {
+        "type": "about",
+        "description": "A fancy shell replacement.  Kind of like Midnight Commander.",
+        "notes": [
+            "Order of files is important."
+        ]
+    },
+    {
+        "type": "source",
+        "local": "../src/programs/monitor/widgets/process.gs",
+        "file": "~/src/programs/monitor/widgets/process.gs",
+        "target": "~/bin/widgets/process"
+    },
+    {
+        "type": "source",
+        "local": "../src/programs/monitor/monitor.gs",
+        "file": "~/src/programs/monitor/monitor.src",
+        "target": "~/bin/monitor"
+    }
+]
