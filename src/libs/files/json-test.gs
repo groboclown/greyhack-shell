@@ -13,13 +13,13 @@ TestJsonParser_init = function(t)
 	t.AssertEqual(p.parse, 1)
 end function
 
-//TestJsonParse_numbers = function(t)
-//	t.AssertEqual(FileLib.Json.parse(char(13) + "42"), 42)
-//	t.AssertEqual(FileLib.Json.parse("-123.45"), -123.45)
-//	t.AssertEqual(FileLib.Json.parse(".5"), 0.5)
-//	t.AssertEqual(FileLib.Json.parse("-.25"), -0.25)
-//end function
-//
+TestJsonParse_numbers = function(t)
+	t.AssertEqual(FileLib.Json.parse(char(13) + "42"), 42)
+	t.AssertEqual(FileLib.Json.parse("-123.45"), -123.45)
+	t.AssertEqual(FileLib.Json.parse(".5"), 0.5)
+	t.AssertEqual(FileLib.Json.parse("-.25"), -0.25)
+end function
+
 //TestJsonParse_strings = function(t)
 //	t.AssertEqual(FileLib.Json.parse("""\tHello, \""Bob\""."""), char(9) + "Hello, ""Bob"".")
 //	t.AssertEqual(FileLib.Json.parse("""\u002F"""), "/"

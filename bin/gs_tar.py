@@ -252,6 +252,7 @@ class Blocks:
         self._group_blocks: List[bytes] = []
         self._other_blocks: List[bytes] = []
         self.include_dir = "~/src/include"
+        self.home_dir = "/home/x"
     
     def assemble(self) -> bytes:
         """Final assembly of the blocks."""
@@ -470,10 +471,11 @@ class Blocks:
         return name
 
 
-IMPORT_RE = re.compile(r'^\s*import_code\s*\(\s*"\${?INC}?/([^"]+)"\s*\)\s*$')
+IMPORT1_RE = re.compile(r'^\s*import_code\s*\(\s*"\${?INC}?/([^"]+)"\s*\)\s*$')
+IMPORT2_RE = re.compile(r'^\s*import_code\s*\(\s*"\${?HOME}?/([^"]+)"\s*\)\s*$')
 
 
-def get_content_with_includes(contents: str, include_dir: str) -> str:
+def get_content_with_includes(contents: str, include_dir: str, home_dir: str) -> str:
     """Special content parsing to allow pulling files from the include dir.
     
     This auto-replaces paths that start with a '${INC}/' or '$INC/' with the
@@ -485,7 +487,7 @@ def get_content_with_includes(contents: str, include_dir: str) -> str:
     if include_dir:
         if include_dir.startswith("~/"):
             # This causes a compile error in the generated code.
-            include_dir_src = f'home_dir + "{include_dir[1:]}/'
+            include_dir_src = f'"{home_dir}{include_dir[1:]}/'
         else:
             include_dir_src = f'"{include_dir}'
     else:
@@ -495,11 +497,15 @@ def get_content_with_includes(contents: str, include_dir: str) -> str:
         # Strip each line, to help minimize it.
         line = line.strip()
         # Do not skip blank lines.  It's really useful to keep line numbers the same.
-        mtc = IMPORT_RE.match(line)
-        if mtc:
+        mtc1 = IMPORT1_RE.match(line)
+        mtc2 = IMPORT2_RE.match(line)
+        if mtc1:
             # Matched up a include-dir path.
-            line = f'import_code({include_dir_src}{mtc.group(1)}")'
-        if line.startswith("//"):
+            line = f'import_code({include_dir_src}{mtc1.group(1)}")'
+        elif mtc2:
+            # Matched up a home-dir path.
+            line = f'import_code("{home_dir}/{mtc1.group(1)}")'
+        elif line.startswith("//"):
             # Strip out comments that are easy to spot.
             line = ""
         ret += "\n" + line
@@ -527,7 +533,7 @@ def parse_block_cmd(
             with open(src_file, 'r', encoding='utf-8') as fis:
                 contents = fis.read()
         if value.get('is-source') == True:
-            contents = get_content_with_includes(contents, blocks.include_dir)
+            contents = get_content_with_includes(contents, blocks.include_dir, blocks.home_dir)
         blocks.add_file(
             file_name,
             contents,
@@ -565,7 +571,7 @@ def parse_block_cmd(
             with open(src_file, 'r', encoding='utf-8') as fis:
                 contents = fis.read()
         # It is always source.
-        contents = get_content_with_includes(contents, blocks.include_dir)
+        contents = get_content_with_includes(contents, blocks.include_dir, blocks.home_dir)
         blocks.add_file(
             source_name,
             contents,
@@ -577,7 +583,7 @@ def parse_block_cmd(
             src_file = os.path.join(context_dir, value['local'])
             with open(src_file, 'r', encoding='utf-8') as fis:
                 contents = fis.read()
-        contents = get_content_with_includes(contents, blocks.include_dir)
+        contents = get_content_with_includes(contents, blocks.include_dir, blocks.home_dir)
         blocks.add_test(str(value['name']), contents)
     elif cmd in ('launch', 'exec', 'run'):
         args = [value['cmd'], *value.get('arguments', ())]
@@ -593,6 +599,9 @@ def parse_block_cmd(
         include = value.get('include-dir')
         if isinstance(include, str) and include:
             blocks.include_dir = include
+        home = value.get('home-dir')
+        if isinstance(home, str) and home:
+            blocks.home_dir = home
     else:
         raise ValueError(f'unknown block type {cmd}')
 

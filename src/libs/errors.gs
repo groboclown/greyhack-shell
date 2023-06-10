@@ -102,4 +102,5 @@ ErrorLib.Message._simple_format = function(message, parameters)
         // partial state
         t = t + "{" + buff
     end if
+    return t
 end function

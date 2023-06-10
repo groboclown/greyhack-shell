@@ -90,7 +90,7 @@ end function
 // T.T.AssertEqual
 T.T.AssertEqual = function(actual, expected, text=null)
     if actual != expected then
-        return self.Fail("expected {expected}, found {actual}{text}", {"expected": expected, "actual": actual, "text": self._text(text)})
+        return self.Fail("expected [{expected}], found [{actual}]{text}", {"expected": expected, "actual": actual, "text": self._text(text)})
     end if
     return false
 end function
@@ -102,7 +102,7 @@ T.T.AssertEqualAny = function(actual, expectedList, text=null)
             return false
         end if
     end for
-    return self.Fail("expected one of {expected}, found {actual}{text}", {"expected": expectedList, "actual": actual, "text": self._text(text)})
+    return self.Fail("expected one of {expected}, found [{actual}]{text}", {"expected": expectedList, "actual": actual, "text": self._text(text)})
 end function
 
 // T.T.AssertNotEqual
@@ -117,7 +117,7 @@ end function
 // T.T.AssertNull
 T.T.AssertNull = function(actual, text=null)
     if actual != null then
-        self.Fail("expected null, found {actual}{text}", {"expected": null, "actual": actual, "text": self._text(text)})
+        self.Fail("expected null, found [{actual}]{text}", {"expected": null, "actual": actual, "text": self._text(text)})
         return true
     end if
     return false
