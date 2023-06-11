@@ -1,5 +1,7 @@
 # Bundles
 
-This directory contains bundles for assembling "gs-tar" files to add into the Grey Hack game.  They use the [`gs_tar.py`](../bin/gs_tar.py) Python program to construct the bundle, and the [`extract`](../src/programs/gs-tar/extract.gs) Grey Hack script to unpack.
+This directory contains bundles for assembling "gs-tar" files to add into the Grey Hack game.  They use the [`ghtar.py`](../bin/ghtar.py) Python program to construct the bundle, and the [`make`](../src/make.src) Grey Hack script to unpack.
 
-The bundles act like small build scripts.  They must be JSON formatted arrays, containing ordered blocks of tasks.
+The [documentation](../bundle-files.md) describes the file format.
+
+The [instructions](../README.md#import-files-into-the-game) describes how to setup the make program and to import bundles into the game.
