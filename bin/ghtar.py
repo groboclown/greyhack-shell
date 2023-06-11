@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 """
-Build up a file that is extractable via the 'extract.gs' script.
+Build up a file that is extractable via the 'make.gs' script.
 
 Example input:
 
@@ -17,11 +17,11 @@ Example input:
     {
         "type": "file",
         "local": "./my-local-file.txt"
-        "file": "~/scripts/try.scr"
+        "path": "~/scripts/try.scr"
     },
     {
         "type": "build",
-        "source": "~/scripts/try.scr",
+        "source": "~/scripts/try.src",
         "target": "~/try"
     }
 ]
