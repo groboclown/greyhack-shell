@@ -1,7 +1,7 @@
-import_code("${INC}/files/binaryRead.gs")
-import_code("${INC}/files/a85Read.gs")
-import_code("${INC}/errors.gs")
-import_code("${INC}/tests.gs")
+import_code("binaryRead.gs")
+import_code("a85Read.gs")
+import_code("../errors.gs")
+import_code("../tests.gs")
 
 
 TestA85NextUInt8 = function(t)

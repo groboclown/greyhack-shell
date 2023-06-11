@@ -7,15 +7,13 @@
         ]
     },
     {
-        "type": "source",
-        "local": "../src/programs/monitor/widgets/process.gs",
-        "file": "~/src/programs/monitor/widgets/process.gs",
+        "type": "compile",
+        "local": "../src/widgets/process.gs",
         "target": "~/bin/widgets/process"
     },
     {
-        "type": "source",
+        "type": "compile",
         "local": "../src/programs/monitor/monitor.gs",
-        "file": "~/src/programs/monitor/monitor.src",
         "target": "~/bin/monitor"
     }
 ]

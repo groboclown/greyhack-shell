@@ -10,6 +10,11 @@
     {
         "type": "file",
         "file": "~/parent/some-file.txt",
-        "contents": "the contents"
+        "contents": "the contents",
+
+        "$comment": [
+            "This will create the file 'parent/some-file.txt' under the home directory ",
+            "of the user running the make script."
+        ]
     }
 ]

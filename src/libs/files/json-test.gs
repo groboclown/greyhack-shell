@@ -3,9 +3,10 @@
 // Under the MIT License.
 // Modified to be in the "FileLib" namespace.
 
-//#require files/json.gs
-//#require errors.gs
-//#require tests.gs
+import_code("../errors.gs")
+import_code("../tests.gs")
+import_code("json.gs")
+
 
 TestJsonParser_init = function(t)
 	p = new FileLib.Json.Parser

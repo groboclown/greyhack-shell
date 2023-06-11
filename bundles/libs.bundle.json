@@ -1,42 +1,15 @@
 [
     {
         "type": "about",
-        "description": "Import the libraries and test them.",
-        "home-dir": "/home/luser",
-        "include-dir": "~/src/libs"
-    },
-    {
-        "type": "file",
-        "local": "../src/libs/errors.gs",
-        "file": "~/src/libs/errors.gs",
-        "is-source": true
-    },
-    {
-        "type": "file",
-        "local": "../src/libs/tests.gs",
-        "file": "~/src/libs/tests.gs",
-        "is-source": true
-    },
-    {
-        "type": "file",
-        "local": "../src/libs/files/binaryRead.gs",
-        "file": "~/src/libs/files/binaryRead.gs",
-        "is-source": true
-    },
-    {
-        "type": "file",
-        "local": "../src/libs/files/a85Read.gs",
-        "file": "~/src/libs/files/a85Read.gs",
-        "is-source": true
+        "bundle-version": "2",
+        "version": "1,0",
+        "description": "Run the library tests."
     },
     {
         "type": "test",
-        "local": "../src/libs/files/binary-read-test.gs",
-        "name": "binary-read"
-    },
-    {
-        "type": "test",
-        "local": "../src/libs/files/a85-read-test.gs",
-        "name": "a85-read"
+        "name": "Libraries",
+        "local": [
+            "../src/libs/**/*-test.gs"
+        ]
     }
 ]

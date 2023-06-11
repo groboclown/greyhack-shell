@@ -1,8 +1,9 @@
 // Unit tests for star-glob
 
-//#require files/star-glob.gs
-//#require errors.gs
-//#require tests.gs
+import_code("../errors.gs")
+import_code("../tests.gs")
+import_code("star-glob.gs")
+
 
 TestMatchStarPattern = function(t)
     t.AssertTrue FileLib.Glob.MatchStarPattern("tuna", "*")
