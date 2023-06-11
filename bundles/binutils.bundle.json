@@ -6,15 +6,9 @@
         ]
     },
     {
-        "type": "source",
-        "local": "../src/programs/gs-tar/extract.gs",
-        "file": "~/src/programs/gstar/extract.src",
+        "type": "compile",
+        "local": "../src/make.gs",
+        "path": "~/src/make.src",
         "target": "~/bin/extract-tar"
-    },
-    {
-        "type": "source",
-        "local": "../src/programs/gs-tar/gscc.gs",
-        "file": "~/src/programs/gstar/gscc.src",
-        "target": "~/bin/gscc"
     }
 ]

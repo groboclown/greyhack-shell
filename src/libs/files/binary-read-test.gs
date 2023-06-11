@@ -1,6 +1,6 @@
-import_code("${INC}/files/binaryRead.gs")
-import_code("${INC}/errors.gs")
-import_code("${INC}/tests.gs")
+import_code("binaryRead.gs")
+import_code("../errors.gs")
+import_code("../tests.gs")
 
 // Reads 0 or 1 from a string.
 bit_reader = function()

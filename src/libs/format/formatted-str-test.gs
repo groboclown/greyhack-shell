@@ -1,9 +1,10 @@
 // Test string formatting.
 
-//#require errors.gs
-//#require tests.gs
-//#require format/formatted-str.gs
+import_code("../errors.gs")
+import_code("../tests.gs")
+import_code("formatted-str.gs")
 
+    
 TestPyFormat_no_format = function(t)
     t.Expect(FormatStr.PyFormat("1 2 3", {"1": "x"})).ToBe("1 2 3")
 end function

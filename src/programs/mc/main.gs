@@ -1,14 +1,14 @@
 // A Shell Replacement
 
-//#require format/formatted-str.gs
-//#require files/paths.gs
-//#require files/star-glob.gs
-//#require fd.gs
-//#require ui.gs
-//#require session.gs
-//#require cmdlet.gs
-//#require parser.gs
-//#require cmdlets/*
+import_code("../libs/format/formatted-str.gs")
+import_code("../libs/files/paths.gs")
+import_code("../libs/files/star-glob.gs")
+import_code("fd.gs")
+import_code("ui.gs")
+import_code("session.gs")
+import_code("cmdlet.gs")
+import_code("parser")
+
 
 // Architecture:
 //   The mc shell has "command-lets" that allow for interactivity, essentially

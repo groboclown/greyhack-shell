@@ -30,8 +30,7 @@ FileLib.BZip2Reader.New = function(parent)
     ret._origPtr = 0 // int
     // ret._blockSize100k = 0 // int (0-9); The current block size is 100000 * this number.
     ret._blockRandomised = false // bool
-    ret._bsBuff = 0 // int
-    ret._bsLive = 0 // int
+    // bsBuff and bsLive are bit shift values, which the parent handles for us.
     ret._crc = null // CRC
     ret._nInUse = 0 // int
     ret._in = parent
@@ -73,15 +72,22 @@ FileLib.BZip2Reader.New = function(parent)
     ret.load_buffer = @FileLib.BZip2Reader.load_buffer
     ret._initBlock = @FileLib.BZip2Reader._initBlock
     ret._setupBlock = @FileLib.BZip2Reader._setupBlock
+    ret._endBlock = @FileLib.BZip2Reader._endBlock
     ret._complete = @FileLib.BZip2Reader._complete
     ret._getAndMoveToFrontDecode = @FileLib.BZip2Reader._getAndMoveToFrontDecode
     ret._reportCRCError = @FileLib.BZip2Reader._reportCRCError
     ret._recvDecodingTables = @FileLib.BZip2Reader._recvDecodingTables
     ret._getAndMoveToFrontDecode0 = @FileLib.BZip2Reader._getAndMoveToFrontDecode0
+    ret._setupRandPartA = @FileLib.BZip2Reader._setupRandPartA
     ret._setupRandPartB = @FileLib.BZip2Reader._setupRandPartB
     ret._setupRandPartC = @FileLib.BZip2Reader._setupRandPartC
+    ret._setupNoRandPartA = @FileLib.BZip2Reader._setupNoRandPartA
     ret._setupNoRandPartB = @FileLib.BZip2Reader._setupNoRandPartB
     ret._setupNoRandPartC = @FileLib.BZip2Reader._setupNoRandPartC
+    ret._makeMaps = @FileLib.BZip2Reader._makeMaps
+    ret._createHuffmanDecodingTables = @FileLib.BZip2Reader._createHuffmanDecodingTables
+    ret._hbCreateDecodeTables = @FileLib.BZip2Reader._hbCreateDecodeTables
+    ret._updateCRC = @FileLib.BZip2Reader._updateCRC
 
     // instead of exceptions...
     ret.Error = null
@@ -140,7 +146,119 @@ FileLib.BZip2Reader._N_ITERS = 4
 FileLib.BZip2Reader._N_GROUPS = 6
 FileLib.BZip2Reader._G_SIZE = 50
 FileLib.BZip2Reader._MAX_SELECTORS = (2 + (900000 / FileLib.BZip2Reader._G_SIZE));
-int NUM_OVERSHOOT_BYTES = 20
+FileLib.BZip2Reader._NUM_OVERSHOOT_BYTES = 20
+FileLib.BZip2Reader._rNums = [ 619, 720, 127, 481, 931, 816, 813, 233, 566, 247,
+        985, 724, 205, 454, 863, 491, 741, 242, 949, 214,
+        733, 859, 335, 708, 621, 574, 73, 654, 730, 472,
+        419, 436, 278, 496, 867, 210, 399, 680, 480, 51,
+        878, 465, 811, 169, 869, 675, 611, 697, 867, 561,
+        862, 687, 507, 283, 482, 129, 807, 591, 733, 623,
+        150, 238, 59, 379, 684, 877, 625, 169, 643, 105,
+        170, 607, 520, 932, 727, 476, 693, 425, 174, 647,
+        73, 122, 335, 530, 442, 853, 695, 249, 445, 515,
+        909, 545, 703, 919, 874, 474, 882, 500, 594, 612,
+        641, 801, 220, 162, 819, 984, 589, 513, 495, 799,
+        161, 604, 958, 533, 221, 400, 386, 867, 600, 782,
+        382, 596, 414, 171, 516, 375, 682, 485, 911, 276,
+        98, 553, 163, 354, 666, 933, 424, 341, 533, 870,
+        227, 730, 475, 186, 263, 647, 537, 686, 600, 224,
+        469, 68, 770, 919, 190, 373, 294, 822, 808, 206,
+        184, 943, 795, 384, 383, 461, 404, 758, 839, 887,
+        715, 67, 618, 276, 204, 918, 873, 777, 604, 560,
+        951, 160, 578, 722, 79, 804, 96, 409, 713, 940,
+        652, 934, 970, 447, 318, 353, 859, 672, 112, 785,
+        645, 863, 803, 350, 139, 93, 354, 99, 820, 908,
+        609, 772, 154, 274, 580, 184, 79, 626, 630, 742,
+        653, 282, 762, 623, 680, 81, 927, 626, 789, 125,
+        411, 521, 938, 300, 821, 78, 343, 175, 128, 250,
+        170, 774, 972, 275, 999, 639, 495, 78, 352, 126,
+        857, 956, 358, 619, 580, 124, 737, 594, 701, 612,
+        669, 112, 134, 694, 363, 992, 809, 743, 168, 974,
+        944, 375, 748, 52, 600, 747, 642, 182, 862, 81,
+        344, 805, 988, 739, 511, 655, 814, 334, 249, 515,
+        897, 955, 664, 981, 649, 113, 974, 459, 893, 228,
+        433, 837, 553, 268, 926, 240, 102, 654, 459, 51,
+        686, 754, 806, 760, 493, 403, 415, 394, 687, 700,
+        946, 670, 656, 610, 738, 392, 760, 799, 887, 653,
+        978, 321, 576, 617, 626, 502, 894, 679, 243, 440,
+        680, 879, 194, 572, 640, 724, 926, 56, 204, 700,
+        707, 151, 457, 449, 797, 195, 791, 558, 945, 679,
+        297, 59, 87, 824, 713, 663, 412, 693, 342, 606,
+        134, 108, 571, 364, 631, 212, 174, 643, 304, 329,
+        343, 97, 430, 751, 497, 314, 983, 374, 822, 928,
+        140, 206, 73, 263, 980, 736, 876, 478, 430, 305,
+        170, 514, 364, 692, 829, 82, 855, 953, 676, 246,
+        369, 970, 294, 750, 807, 827, 150, 790, 288, 923,
+        804, 378, 215, 828, 592, 281, 565, 555, 710, 82,
+        896, 831, 547, 261, 524, 462, 293, 465, 502, 56,
+        661, 821, 976, 991, 658, 869, 905, 758, 745, 193,
+        768, 550, 608, 933, 378, 286, 215, 979, 792, 961,
+        61, 688, 793, 644, 986, 403, 106, 366, 905, 644,
+        372, 567, 466, 434, 645, 210, 389, 550, 919, 135,
+        780, 773, 635, 389, 707, 100, 626, 958, 165, 504,
+        920, 176, 193, 713, 857, 265, 203, 50, 668, 108,
+        645, 990, 626, 197, 510, 357, 358, 850, 858, 364,
+        936, 638 ]
+
+
+// --------------------------------------------
+// static functions
+FileLib.BZip2Reader._next3 = function(inp)
+    v1 = inp.NextBit
+    v2 = inp.NextBit
+    v3 = inp.NextBit
+    if v1 == null or v2 == null or v3 == null then return null
+    return (v1 * 4) + (v2 * 2) + v3
+end function
+
+FileLib.BZip2Reader._next24 = function(inp)
+    v1 = inp.NextUInt8
+    v2 = inp.NextUInt8
+    v3 = inp.NextUInt8
+    if v1 == null or v2 == null or v3 == null then return null
+    return (v1 * 65536) + (v2 * 256) + v3
+end function
+
+FileLib.BZip2Reader._nextN = function(inp, bit_count)
+    // The faster implementation is to inspect the inp to
+    // judge the remaining bits to get it to be 0 first then
+    // bytes then other.
+    ret = 0
+    while bit_count > 0
+        if bit_count >= 32 then
+            data = inp.NextUInt32BE
+            gathered = 32
+            pow = 4294967296
+        else if bit_count >= 24 then
+            data = FileLib.BZip2Reader._next24(inp)
+            gathered = 24
+            pow = 16777216
+        else if bit_count >= 16 then
+            data = inp.NextUInt16BE
+            gathered = 16
+            pow = 65536
+        else if bit_count >= 8 then
+            data = inp.NextUInt8
+            gathered = 8
+            pow = 256
+        else if bit_count >= 3 then
+            data = FileLib.BZip2Reader._next3(inp)
+            gathered = 3
+            pow = 8
+        else
+            data = inp.NextBit
+            gathered = 1
+            pow = 2
+        end if
+        if data == null then return null
+        bit_count = bit_count - gathered
+        ret = (ret * pow) + data
+    end while
+    return ret
+end function
+
+// ---------------------------------------------
+// Methods
 
 // FileLib.BZip2Reader.load_buffer Read the next data into the buffer
 FileLib.BZip2Reader.load_buffer = function()
@@ -250,15 +368,6 @@ FileLib.BZip2Reader._complete = function()
     return false
 end function
 
-// static function
-FileLib.BZip2Reader._next24 = function(inp)
-    v1 = inp.NextUInt8
-    v2 = inp.NextUInt8
-    v3 = inp.NextUInt8
-    if v1 == null or v2 == null or v3 == null then return null
-    return (v1 * 65536) + (v2 * 256) + v3
-end function
-
 FileLib.BZip2Reader._getAndMoveToFrontDecode = function()
     self._origPtr = FileLib.BZip2Reader._next24(self._in)
     self._recvDecodingTables()
@@ -267,7 +376,7 @@ FileLib.BZip2Reader._getAndMoveToFrontDecode = function()
 
     i = 255
     while i >= 0
-        self._data_yy[i] = i
+        self._data_getAndMoveToFrontDecode_yy[i] = i
         self._data_unzftab[i] = 0
         i = i - 1
     end while
@@ -284,7 +393,7 @@ FileLib.BZip2Reader._getAndMoveToFrontDecode = function()
     minLens_zt  = self._data_minLens[zt]
 
     while nextSym != eob
-        if ((nextSym == FileLib.BZip2Reader._RUNA) || (nextSym == FileLib.BZip2Reader._RUNB)) then
+        if ((nextSym == FileLib.BZip2Reader._RUNA) or (nextSym == FileLib.BZip2Reader._RUNB)) then
             s = -1
             n = 1
             while true
@@ -298,166 +407,484 @@ FileLib.BZip2Reader._getAndMoveToFrontDecode = function()
                 n = n * 2
             end while
 
-            for (int n = 1; true; n <<= 1) {
-
-                if (groupPos == 0) {
+            n = 1
+            while true
+                if groupPos == 0 then
                     groupPos    = G_SIZE - 1;
-                    zt          = selector[++groupNo] & 0xff;
-                    base_zt     = base[zt];
-                    limit_zt    = limit[zt];
-                    perm_zt     = perm[zt];
-                    minLens_zt  = minLens[zt];
-                } else {
-                    groupPos--;
-                }
+                    groupNo     = groupNo + 1
+                    zt          = self._data_selector[groupNo] % 256
+                    base_zt     = self._data_base[zt]
+                    limit_zt    = self._data_limit[zt]
+                    perm_zt     = self._data_perm[zt]
+                    minLens_zt  = self._data_minLens[zt]
+                else
+                    groupPos = groupPos - 1
+                end if
 
-                int zn = minLens_zt;
+                zn = minLens_zt
+                zvec = FileLib.BZip2Reader._nextN(self._in, zn)
 
-                // Inlined:
-                // int zvec = bsR(zn);
-                while (bsLiveShadow < zn) {
-                    final int thech = inShadow.read();
-                    if (thech >= 0) {
-                        bsBuffShadow = (bsBuffShadow << 8) | thech;
-                        bsLiveShadow += 8;
-                        continue;
-                    } else {
-                        throw new IOException("unexpected end of stream");
-                    }
-                }
-                int zvec = (bsBuffShadow >> (bsLiveShadow - zn)) & ((1 << zn) - 1);
-                bsLiveShadow -= zn;
+                // FIXME DOUBLE CHECK THIS LOGIC
+                // Looks like zvec is always >
+                // Need to ensure the sign bit is recognized.
+                while zvec > limit_zt[zn]
+                    zn = zn + 1
+                    zvec = (zvec * 2) + self._in.NextBit
+                end while
+                nextSym = perm_zt[zvec - base_zt[zn]]
 
-                while (zvec > limit_zt[zn]) {
-                    zn++;
-                    while (bsLiveShadow < 1) {
-                        final int thech = inShadow.read();
-                        if (thech >= 0) {
-                            bsBuffShadow = (bsBuffShadow << 8) | thech;
-                            bsLiveShadow += 8;
-                            continue;
-                        } else {
-                            throw new IOException("unexpected end of stream");
-                        }
-                    }
-                    bsLiveShadow--;
-                    zvec = (zvec << 1) | ((bsBuffShadow >> bsLiveShadow) & 1);
-                }
-                nextSym = perm_zt[zvec - base_zt[zn]];
-            }
+                n = n * 2
+            end while
 
-            final byte ch = seqToUnseq[yy[0]];
-            unzftab[ch & 0xff] += s + 1;
+            ch = self._data_seqToUnseq[self._data_getAndMoveToFrontDecode_yy[0]]
+            unzftab[ch % 256] = unzftab[ch % 256] + s + 1
 
-            while (s-- >= 0) {
-                ll8[++lastShadow] = ch;
-            }
+            while s >= 0
+                s = s - 1
+                self._last = self._last + 1
+                self._data_ll8[self._last] = ch;
+            end while
 
-            if (lastShadow >= limitLast) {
-                throw new IOException("block overrun");
-            }
+            if self._last >= limitLast then
+                self.Error = "block overrun"
+                return null
+            end if
         else
-            if (++lastShadow >= limitLast) {
-                throw new IOException("block overrun");
-            }
+            self._last = self._last + 1
+            if self._last >= limitLast then
+                self.Error = "block overrun"
+                return null
+            end if
 
-            final char tmp = yy[nextSym - 1];
-            unzftab[seqToUnseq[tmp] & 0xff]++;
-            ll8[lastShadow] = seqToUnseq[tmp];
+            tmp = self._data_getAndMoveToFrontDecode_yy[nextSym - 1]
+            self._data_unzftab[self._data_seqToUnseq[tmp] % 256] = self._data_unzftab[self._data_seqToUnseq[tmp] % 256] + 1
+            self._data_ll8[self._last] = self._data_seqToUnseq[tmp]
 
-            /*
-                This loop is hammered during decompression,
-                hence avoid native method call overhead of
-                System.arraycopy for very small ranges to copy.
-            */
-            if (nextSym <= 16) {
-                for (int j = nextSym - 1; j > 0;) {
-                    yy[j] = yy[--j];
-                }
-            } else {
-                System.arraycopy(yy, 0, yy, 1, nextSym - 1);
-            }
+            // This loop is hammered during decompression.
+            j = nextSym - 1
+            while j > 0
+                k = j - 1
+                self._data_getAndMoveToFrontDecode_yy[j] = self._data_getAndMoveToFrontDecode_yy[k]
+                j = k
+            end while
+            self._data_getAndMoveToFrontDecode_yy[0] = tmp
 
-            yy[0] = tmp;
+            if groupPos == 0 then
+                groupPos    = FileLib.BZip2Reader._G_SIZE - 1
+                groupNo     = groupNo + 1
+                zt          = self._data_selector[groupNo] % 256
+                base_zt     = self._data_base[zt]
+                limit_zt    = self._data_limit[zt]
+                perm_zt     = self._data_perm[zt]
+                minLens_zt  = self._data_minLens[zt]
+            else
+                groupPos = groupPos - 1
+            end if
 
-            if (groupPos == 0) {
-                groupPos    = G_SIZE - 1;
-                zt          = selector[++groupNo] & 0xff;
-                base_zt     = base[zt];
-                limit_zt    = limit[zt];
-                perm_zt     = perm[zt];
-                minLens_zt  = minLens[zt];
-            } else {
-                groupPos--;
-            }
+            zn = minLens_zt
+            zvec = self.FileLib.BZip2Reader._nextN(self._in, zn)
 
-            int zn = minLens_zt;
-
-            // Inlined:
-            // int zvec = bsR(zn);
-            while (bsLiveShadow < zn) {
-                final int thech = inShadow.read();
-                if (thech >= 0) {
-                    bsBuffShadow = (bsBuffShadow << 8) | thech;
-                    bsLiveShadow += 8;
-                    continue;
-                } else {
-                    throw new IOException("unexpected end of stream");
-                }
-            }
-            int zvec = (bsBuffShadow >> (bsLiveShadow - zn)) & ((1 << zn) - 1);
-            bsLiveShadow -= zn;
-
-            while (zvec > limit_zt[zn]) {
-                zn++;
-                while (bsLiveShadow < 1) {
-                    final int thech = inShadow.read();
-                    if (thech >= 0) {
-                        bsBuffShadow = (bsBuffShadow << 8) | thech;
-                        bsLiveShadow += 8;
-                        continue;
-                    } else {
-                        throw new IOException("unexpected end of stream");
-                    }
-                }
-                bsLiveShadow--;
-                zvec = (zvec << 1) | ((bsBuffShadow >> bsLiveShadow) & 1);
-            }
-            nextSym = perm_zt[zvec - base_zt[zn]];
+            // FIXME DOUBLE CHECK THIS LOGIC
+            // Looks like zvec is always >
+            // Need to ensure the sign bit is recognized.
+            while zvec > limit_zt[zn]
+                zn = zn + 1
+                next = self._in.NextBit
+                if next == null then
+                    self.Error = "unexpected end of stream"
+                    return null
+                end if
+                zvec = (zvec * 2) + next
+            end while
+            nextSym = perm_zt[zvec - base_zt[zn]]
         end if
     end while
 end function
 
 FileLib.BZip2Reader._reportCRCError = function()
+    self.Error = "BZip2 CRC error"
     print("BZip2 CRC error")
 end function
 
 FileLib.BZip2Reader._recvDecodingTables = function()
+    // pos -> recvDecodingTables_pos
+    inUse16 = []
+
+    // Receive the mapping table
+    for i in range(0, 15)
+        bit = self._in.NextBit
+        if bit == null then return null
+        if bit == 1 then
+            inUse16.push(true)
+        else
+            inUse16.push(false)
+        end if
+    end for
+
+    for i in self._data_inUse.indexes
+        self._data_inUse[i] = false
+    end for
+
+    for i in range(0, 15)
+        if inUse16[i] then
+            i16 = i * 16
+            for j in range(0, 15)
+                bit = self._in.NextBit
+                if bit == null then return null
+                if bit then
+                    inUse[i16 + j] = true
+                end if
+            end if
+        end if
+    end for
+
+    self._makeMaps()
+    alphaSize = self._nInUse + 2
+
+    // Now the selectors
+    nGroups = FileLib.BZip2Reader._next3(self._in)
+    nSelectors = FileLib.BZip2Reader._nextN(self._in, 15)
+
+    for i in range(0, nSelectors - 1)
+        j = 0
+        while true
+            bit = self._in.NextBit
+            if bit == null return null
+            if bit == 1 then
+                j = j + 1
+            else
+                break
+            end if
+        end while
+        self._data_selectorMtf[i] = j
+    end for
+
+    // Undo the MTF values for the selectors
+    for v in range(0, nGroups - 1)
+        self._data_recvDecodingTables_pos[v] = v
+    end for
+
+    for i in range(0, nSelectors - 1)
+        v = self._data_selectorMtf[i] % 256
+        tmp = self._data_recvDecodingTables_pos[v]
+        while v > 0
+            self._data_recvDecodingTables_pos[v] = self._data_recvDecodingTables_pos[v - 1]
+            v = v - 1
+        end while
+        self._data_recvDecodingTables_pos[0] = tmp
+        self._data_selector[i] = tmp
+    end for
+
+    len_table = self._data_temp_charArray2d
+
+    // Now the coding tables
+    for t in range(0, nGroups - 1)
+        curr = FileLib.BZip2Reader._nextN(self._in, 5)
+        len_t = self._data_temp_charArray2d[t]
+        for i in range(0, alphaSize - 1)
+            while true
+                // continue bit
+                bit = self._in.NextBit
+                if bit == null then return null
+                if bit == 0 then break
+
+                // value bit
+                bit = self._in.NextBit
+                if bit == null then return null
+                if bit == 1 then
+                    curr = curr - 1
+                else
+                    curr = curr + 1
+                end if
+            end while
+            len_t[i] = curr
+        end for
+    end for
+
+    // finally create the Huffman tables
+    self._createHuffmanDecodingTables(alphaSize, nGroups)
 end function
 
-FileLib.BZip2Reader._getAndMoveToFrontDecode0 = function()
+FileLib.BZip2Reader._getAndMoveToFrontDecode0 = function(groupNo)
+    // groupNo: int
+
+    zt = self._datadata_selector[groupNo] % 256
+    limit_zt = self._data_limit[zt]
+    zn = self._data_minLens[zt]
+    zvec = FileLib.BZip2Reader._nextN(self._in, zn)
+
+    // FIXME DOUBLE CHECK THIS LOGIC
+    // Looks like zvec is always >
+    // Need to ensure the sign bit is recognized.
+    while zvec > limit_zt[zn]
+        zn = zn + 1
+        bit = self._in.NextBit
+        if bit == null then return null
+        zvec = (zvec * 2) + bit
+    end while
+
+    return self._data_perm[zt][zvec - self._data_base[zt][zn]]
 end function
 
 FileLib.BZip2Reader._setupBlock = function()
+    // Set up _data_tt
+
+    // tt.length should always be >= length, but theoretically
+    // it can happen, if the compressor mixed small and large
+    // blocks.  Normally only the last block will be smaller
+    // than others.
+    if self._data_tt == null or self._data_tt.len < self._last + 1 then
+        self._data_tt = FileLib.BZip2Reader._create_buffer(0, self._last + 1)
+    end if
+
+    self._data_cftab[0] = 0
+    // Double check this logic:
+    // System.arraycopy(this.data.unzftab, 0, cftab, 1, 256);
+    for i in range(0, 255)
+        self._data_cftab[i + 1] = self._data_unzftab[i]
+    end for
+
+    c = self._data_cftab[0]
+    for i in range(1, 256)
+        c = c + self._data_cftab[i]
+        self._data_cftab[i] = c
+    end for
+
+    for i in range(0, self._last)
+        idx = self._data_ll8[i] % 256
+        c = self._data_cftab[idx]
+        c = c + 1
+        self._data_cftab[idx] = c
+        tt[c] = i
+    end for
+
+    if self._origPtr < 0 or self._origPtr >= self._data_tt.len then
+        self.Error = "stream corrupted"
+        return null
+    end if
+    
+    // =========================================
+    // FIXME BELOW HERE
+
+    this.su_tPos = tt[this.origPtr];
+    this.su_count = 0;
+    this.su_i2 = 0;
+    this.su_ch2 = 256;   /* not a char and not EOF */
+
+    if (this.blockRandomised) {
+        this.su_rNToGo = 0;
+        this.su_rTPos = 0;
+        setupRandPartA();
+    } else {
+        setupNoRandPartA();
+    }
+
+    // FIXME ABOVE HERE
+    // =========================================
+
+end function
+
+FileLib.BZip2Reader._endBlock = function()
+    self._computedBlockCRC = self._getFinalCRC()
+
+    // A bad CRC is considered a fatal error.
+    if self._storedBlockCRC != self._computedBlockCRC then
+        // make next blocks readable without error
+        // (repair feature, not yet documented, not tested)
+        self._computedCombinedCRC = (self._storedCombinedCRC * 2) + floor(self._storedCombinedCRC / FileLib._pow2[31])
+        // FIXME HANDLE XOR
+        self._computedCombinedCRC ^= self._storedBlockCRC
+
+        self._reportCRCError()
+    end if
+
+    self._computedCombinedCRC = (self._computedCombinedCRC * 2) + floor(self._computedCombinedCRC / FileLib._pow2[31])
+    // FIXME HANDLE XOR
+    self._computedCombinedCRC ^= self.computedBlockCRC
+end function
+
+FileLib.BZip2Reader._setupRandPartA = function()
 end function
 
 FileLib.BZip2Reader._setupRandPartB = function()
+    if self._su_ch2 != self._su_chPrev then
+        self._currentState = FileLib.BZip2Reader._RAND_PART_A_STATE
+        self._su_count = 1
+        self._setupRandPartA()
+        return
+    end if
+    self._su_count = self._su_count + 1
+    if self._su_count >= 4 then
+        self._su_z = self._data_ll8[self._su_tPos] % 256
+        self._su_tPos = self._data_tt[self._su_tPos]
+        if self._su_rNToGo == 0 then
+            self._su_rNToGo = FileLib.BZip2Reader._rNums[self._su_rTPos] - 1
+            self._su_rTPos = self._su_rTPos + 1
+            if self._su_rTPos == 512 then self._su_rTPos = 0
+        else
+            self._su_rNToGo = self._su_rNToGo - 1
+        end if
+        self._su_j2 = 0
+        self._currentState = FileLib.BZip2Reader._RAND_PART_C_STATE
+        if self._su_rNToGo == 1 then
+            // UM.....
+            // FIXME this is an xor operation.
+            this.su_z ^= 1;
+        end if
+        self._setupRandPartC()
+    else
+        self._currentState = FileLib.BZip2Reader._RAND_PART_A_STATE
+        self._setupRandPartA()
+    end if
 end function
 
 FileLib.BZip2Reader._setupRandPartC = function()
+    if self._su_j2 < self._su_z then
+        self._currentChar = self._su_ch2
+        self._updateCRC(self._su_ch2)
+        self._su_j2 = self._su_j2 + 1
+    else
+        self._currentState = FileLib.BZip2Reader._RAND_PART_A_STATE
+        self._su_i2 = self._su_i2 + 1
+        self._su_count = 0
+        self._setupRandPartA()
+    end if
 end function
 
+FileLib.BZip2Reader._setupNoRandPartA = function()
+    if self._su_i2 <= self._last then
+        self._su_chPrev = self._su_ch2
+        su_ch2Shadow = self._data_ll8[self._su_tPos] % 256
+        self._su_ch2 = su_ch2Shadow
+        self._su_tPos = self._data_tt[this.su_tPos]
+        self._su_i2 = self._su_i2 + 1
+        self._currentChar = su_ch2Shadow;
+        self._currentState = FileLib.BZip2Reader._NO_RAND_PART_B_STATE
+        self._updateCRC(su_ch2Shadow)
+    else
+        self._currentState = FileLib.BZip2Reader._NO_RAND_PART_A_STATE
+        self._endBlock()
+        self._initBlock()
+        self._setupBlock()
+    end if
+end function
+
+
 FileLib.BZip2Reader._setupNoRandPartB = function()
+    if self._su_ch2 != self._su_chPrev then
+        self._su_count = 1
+        self._setupNoRandPartA()
+    else
+        self._su_count = self._su_count + 1
+        if (self._su_count >= 4) then
+            self._su_z = self._data_ll8[self._su_tPos] % 256
+            self._su_tPos = self._data_tt[self._su_tPos]
+            self._su_j2 = 0
+            self._setupNoRandPartC()
+        else
+            self._setupNoRandPartA()
+        end if
+    end if
 end function
 
 FileLib.BZip2Reader._setupNoRandPartC = function()
+    if self._su_j2 < self._su_z then
+        self._currentChar = self._su_ch2
+        self._updateCRC(self._su_ch2)
+        self._su_j2++
+        this.currentState = FileLib.BZip2Reader._NO_RAND_PART_C_STATE
+    else
+        this.su_i2++;
+        this.su_count = 0;
+        self._setupNoRandPartA()
+    end if
+end function
+
+FileLib.BZip2Reader._makeMaps = function()
+    self._nInUse = 0
+    for i in range(0, 255)
+        if self._data_inUse[i] then
+            self._data_seqToUnseq[self._nInUse] = i
+            self._nInUse = self._nInUse + 1
+        end if
+    end for
+end function
+
+FileLib.BZip2Reader._createHuffmanDecodingTables = function(alphaSize, nGroups)
+    for t in range(0, nGroups - 1)
+        minLen = 32
+        maxLen = 0
+        len_t = self._data_temp_charArray2d[t]
+        for i in range(0, alphaSize - 1)
+            lent = len_t[i]
+            if lent > maxLen then maxLen = lent
+            if lent < minLen then minLen = lent
+        end for
+        self._hbCreateDecodeTables(self._data_limit[t], self._data_base[t], self._data_perm[t], self._data_temp_charArray2d[t], minLen, maxLen, alphaSize)
+        self._data_minLens[t] = minLen
+    end for
+end function
+
+FileLib.BZip2Reader._hbCreateDecodeTables = function(limit, base, perm, length, minLen, maxLen, alphaSize)
+    // limit: int[]
+    // base: int[]
+    // perm: int[]
+    // length: uint16[]
+    // minLen: int
+    // maxLen: int
+    // alphaSize: int
+    pp = 0
+    for i in range(minLen, maxLen)
+        for j in range(0, alphaSize - 1)
+            if length[j] == i then
+                perm[pp] = j
+                pp = pp + 1
+            end if
+        end for
+    end for
+
+    for i in range(0, FileLib.BZip2Reader._MAX_CODE_LEN - 1)
+        base[i] = 0
+        limit[i] = 0
+    end for
+
+    for i in range(0, alphaSize - 1)
+        base[length[i] + 1] = base[length[i] + 1] + 1
+    end for
+
+    b = base[0]
+    for i in range(1, FileLib.BZip2Reader._MAX_CODE_LEN - 1)
+        b = b + base[i]
+        base[i] = b
+    end for
+
+    vec = 0
+    b = base[minLen]
+    for i in range(minLen, maxLen)
+        nb = base[i + 1]
+        vec = nb - b
+        b = nb
+        limit[i] = vec - 1
+        vec = vec * 2
+    end for
+
+    for i in range(minLen + 1, maxLen)
+        base[i] = ((limit[i - 1] + 1) << 1) - base[i]
+    end for
+end function
+
+FileLib.BZip2Reader._updateCRC = function(value)
+    // TODO implement CRC
+end function
+
+FileLib.BZip2Reader._finalCRC = function()
+    // TODO implement CRC
+    return 0
 end function
 
 
-
-
-
-
+// ============================================
+// FIXME FINISH MOVING BELOW TO UP.
 
 
 
@@ -465,43 +892,6 @@ end function
 public class CBZip2InputStream extends InputStream implements BZip2Constants {
     // Variables used by setup* methods exclusively
 
-
-
-    private void makeMaps() {
-        final boolean[] inUse   = this.data.inUse;
-        final byte[] seqToUnseq = this.data.seqToUnseq;
-
-        int nInUseShadow = 0;
-
-        for (int i = 0; i < 256; i++) {
-            if (inUse[i]) {
-                seqToUnseq[nInUseShadow++] = (byte) i;
-            }
-        }
-
-        this.nInUse = nInUseShadow;
-    }
-
-    private void endBlock() throws IOException {
-        this.computedBlockCRC = this.crc.getFinalCRC();
-
-        // A bad CRC is considered a fatal error.
-        if (this.storedBlockCRC != this.computedBlockCRC) {
-            // make next blocks readable without error
-            // (repair feature, not yet documented, not tested)
-            this.computedCombinedCRC
-                = (this.storedCombinedCRC << 1)
-                | (this.storedCombinedCRC >>> 31);
-            this.computedCombinedCRC ^= this.storedBlockCRC;
-
-            reportCRCError();
-        }
-
-        this.computedCombinedCRC
-            = (this.computedCombinedCRC << 1)
-            | (this.computedCombinedCRC >>> 31);
-        this.computedCombinedCRC ^= this.computedBlockCRC;
-    }
 
     @Override
     public void close() throws IOException {
@@ -515,235 +905,6 @@ public class CBZip2InputStream extends InputStream implements BZip2Constants {
                 this.data = null;
                 this.in = null;
             }
-        }
-    }
-
-    /**
-        * Called by createHuffmanDecodingTables() exclusively.
-        */
-    private static void hbCreateDecodeTables(final int[] limit,
-                                                final int[] base,
-                                                final int[] perm,
-                                                final char[] length,
-                                                final int minLen,
-                                                final int maxLen,
-                                                final int alphaSize) {
-        for (int i = minLen, pp = 0; i <= maxLen; i++) {
-            for (int j = 0; j < alphaSize; j++) {
-                if (length[j] == i) {
-                    perm[pp++] = j;
-                }
-            }
-        }
-
-        for (int i = MAX_CODE_LEN; --i > 0;) {
-            base[i] = 0;
-            limit[i] = 0;
-        }
-
-        for (int i = 0; i < alphaSize; i++) {
-            base[length[i] + 1]++;
-        }
-
-        for (int i = 1, b = base[0]; i < MAX_CODE_LEN; i++) {
-            b += base[i];
-            base[i] = b;
-        }
-
-        for (int i = minLen, vec = 0, b = base[i]; i <= maxLen; i++) {
-            final int nb = base[i + 1];
-            vec += nb - b;
-            b = nb;
-            limit[i] = vec - 1;
-            vec <<= 1;
-        }
-
-        for (int i = minLen + 1; i <= maxLen; i++) {
-            base[i] = ((limit[i - 1] + 1) << 1) - base[i];
-        }
-    }
-
-    private void recvDecodingTables() throws IOException {
-        final Data dataShadow     = this.data;
-        final boolean[] inUse     = dataShadow.inUse;
-        final byte[] pos          = dataShadow.recvDecodingTables_pos;
-        final byte[] selector     = dataShadow.selector;
-        final byte[] selectorMtf  = dataShadow.selectorMtf;
-
-        int inUse16 = 0;
-
-        /* Receive the mapping table */
-        for (int i = 0; i < 16; i++) {
-            if (bsGetBit()) {
-                inUse16 |= 1 << i;
-            }
-        }
-
-        for (int i = 256; --i >= 0;) {
-            inUse[i] = false;
-        }
-
-        for (int i = 0; i < 16; i++) {
-            if ((inUse16 & (1 << i)) != 0) {
-                final int i16 = i << 4;
-                for (int j = 0; j < 16; j++) {
-                    if (bsGetBit()) {
-                        inUse[i16 + j] = true;
-                    }
-                }
-            }
-        }
-
-        makeMaps();
-        final int alphaSize = this.nInUse + 2;
-
-        /* Now the selectors */
-        final int nGroups = bsR(3);
-        final int nSelectors = bsR(15);
-
-        for (int i = 0; i < nSelectors; i++) {
-            int j = 0;
-            while (bsGetBit()) {
-                j++;
-            }
-            selectorMtf[i] = (byte) j;
-        }
-
-        /* Undo the MTF values for the selectors. */
-        for (int v = nGroups; --v >= 0;) {
-            pos[v] = (byte) v;
-        }
-
-        for (int i = 0; i < nSelectors; i++) {
-            int v = selectorMtf[i] & 0xff;
-            final byte tmp = pos[v];
-            while (v > 0) {
-                // nearly all times v is zero, 4 in most other cases
-                pos[v] = pos[v - 1];
-                v--;
-            }
-            pos[0] = tmp;
-            selector[i] = tmp;
-        }
-
-        final char[][] len  = dataShadow.temp_charArray2d;
-
-        /* Now the coding tables */
-        for (int t = 0; t < nGroups; t++) {
-            int curr = bsR(5);
-            final char[] len_t = len[t];
-            for (int i = 0; i < alphaSize; i++) {
-                while (bsGetBit()) {
-                    curr += bsGetBit() ? -1 : 1;
-                }
-                len_t[i] = (char) curr;
-            }
-        }
-
-        // finally create the Huffman tables
-        createHuffmanDecodingTables(alphaSize, nGroups);
-    }
-
-    /**
-        * Called by recvDecodingTables() exclusively.
-        */
-    private void createHuffmanDecodingTables(final int alphaSize,
-                                                final int nGroups) {
-        final Data dataShadow = this.data;
-        final char[][] len  = dataShadow.temp_charArray2d;
-        final int[] minLens = dataShadow.minLens;
-        final int[][] limit = dataShadow.limit;
-        final int[][] base  = dataShadow.base;
-        final int[][] perm  = dataShadow.perm;
-
-        for (int t = 0; t < nGroups; t++) {
-            int minLen = 32;
-            int maxLen = 0;
-            final char[] len_t = len[t];
-            for (int i = alphaSize; --i >= 0;) {
-                final char lent = len_t[i];
-                if (lent > maxLen) {
-                    maxLen = lent;
-                }
-                if (lent < minLen) {
-                    minLen = lent;
-                }
-            }
-            hbCreateDecodeTables(limit[t], base[t], perm[t], len[t], minLen,
-                                    maxLen, alphaSize);
-            minLens[t] = minLen;
-        }
-    }
-
-    private int getAndMoveToFrontDecode0(final int groupNo)
-        throws IOException {
-        final InputStream inShadow  = this.in;
-        final Data dataShadow  = this.data;
-        final int zt          = dataShadow.selector[groupNo] & 0xff;
-        final int[] limit_zt  = dataShadow.limit[zt];
-        int zn = dataShadow.minLens[zt];
-        int zvec = bsR(zn);
-        int bsLiveShadow = this.bsLive;
-        int bsBuffShadow = this.bsBuff;
-
-        while (zvec > limit_zt[zn]) {
-            zn++;
-            while (bsLiveShadow < 1) {
-                final int thech = inShadow.read();
-
-                if (thech >= 0) {
-                    bsBuffShadow = (bsBuffShadow << 8) | thech;
-                    bsLiveShadow += 8;
-                    continue;
-                } else {
-                    throw new IOException("unexpected end of stream");
-                }
-            }
-            bsLiveShadow--;
-            zvec = (zvec << 1) | ((bsBuffShadow >> bsLiveShadow) & 1);
-        }
-
-        this.bsLive = bsLiveShadow;
-        this.bsBuff = bsBuffShadow;
-
-        return dataShadow.perm[zt][zvec - dataShadow.base[zt][zn]];
-    }
-
-    private void setupBlock() throws IOException {
-        if (this.data == null) {
-            return;
-        }
-
-        final int[] cftab = this.data.cftab;
-        final int[] tt    = this.data.initTT(this.last + 1);
-        final byte[] ll8  = this.data.ll8;
-        cftab[0] = 0;
-        System.arraycopy(this.data.unzftab, 0, cftab, 1, 256);
-
-        for (int i = 1, c = cftab[0]; i <= 256; i++) {
-            c += cftab[i];
-            cftab[i] = c;
-        }
-
-        for (int i = 0, lastShadow = this.last; i <= lastShadow; i++) {
-            tt[cftab[ll8[i] & 0xff]++] = i;
-        }
-
-        if ((this.origPtr < 0) || (this.origPtr >= tt.length)) {
-            throw new IOException("stream corrupted");
-        }
-
-        this.su_tPos = tt[this.origPtr];
-        this.su_count = 0;
-        this.su_i2 = 0;
-        this.su_ch2 = 256;   /* not a char and not EOF */
-
-        if (this.blockRandomised) {
-            this.su_rNToGo = 0;
-            this.su_rTPos = 0;
-            setupRandPartA();
-        } else {
-            setupNoRandPartA();
         }
     }
 
@@ -770,154 +931,4 @@ public class CBZip2InputStream extends InputStream implements BZip2Constants {
             initBlock();
             setupBlock();
         }
-    }
-
-    private void setupNoRandPartA() throws IOException {
-        if (this.su_i2 <= this.last) {
-            this.su_chPrev = this.su_ch2;
-            int su_ch2Shadow = this.data.ll8[this.su_tPos] & 0xff;
-            this.su_ch2 = su_ch2Shadow;
-            this.su_tPos = this.data.tt[this.su_tPos];
-            this.su_i2++;
-            this.currentChar = su_ch2Shadow;
-            this.currentState = NO_RAND_PART_B_STATE;
-            this.crc.updateCRC(su_ch2Shadow);
-        } else {
-            this.currentState = NO_RAND_PART_A_STATE;
-            endBlock();
-            initBlock();
-            setupBlock();
-        }
-    }
-
-    private void setupRandPartB() throws IOException {
-        if (this.su_ch2 != this.su_chPrev) {
-            this.currentState = RAND_PART_A_STATE;
-            this.su_count = 1;
-            setupRandPartA();
-        } else if (++this.su_count >= 4) {
-            this.su_z = (char) (this.data.ll8[this.su_tPos] & 0xff);
-            this.su_tPos = this.data.tt[this.su_tPos];
-            if (this.su_rNToGo == 0) {
-                this.su_rNToGo = BZip2Constants.rNums[this.su_rTPos] - 1;
-                if (++this.su_rTPos == 512) {
-                    this.su_rTPos = 0;
-                }
-            } else {
-                this.su_rNToGo--;
-            }
-            this.su_j2 = 0;
-            this.currentState = RAND_PART_C_STATE;
-            if (this.su_rNToGo == 1) {
-                this.su_z ^= 1;
-            }
-            setupRandPartC();
-        } else {
-            this.currentState = RAND_PART_A_STATE;
-            setupRandPartA();
-        }
-    }
-
-    private void setupRandPartC() throws IOException {
-        if (this.su_j2 < this.su_z) {
-            this.currentChar = this.su_ch2;
-            this.crc.updateCRC(this.su_ch2);
-            this.su_j2++;
-        } else {
-            this.currentState = RAND_PART_A_STATE;
-            this.su_i2++;
-            this.su_count = 0;
-            setupRandPartA();
-        }
-    }
-
-    private void setupNoRandPartB() throws IOException {
-        if (this.su_ch2 != this.su_chPrev) {
-            this.su_count = 1;
-            setupNoRandPartA();
-        } else if (++this.su_count >= 4) {
-            this.su_z = (char) (this.data.ll8[this.su_tPos] & 0xff);
-            this.su_tPos = this.data.tt[this.su_tPos];
-            this.su_j2 = 0;
-            setupNoRandPartC();
-        } else {
-            setupNoRandPartA();
-        }
-    }
-
-    private void setupNoRandPartC() throws IOException {
-        if (this.su_j2 < this.su_z) {
-            int su_ch2Shadow = this.su_ch2;
-            this.currentChar = su_ch2Shadow;
-            this.crc.updateCRC(su_ch2Shadow);
-            this.su_j2++;
-            this.currentState = NO_RAND_PART_C_STATE;
-        } else {
-            this.su_i2++;
-            this.su_count = 0;
-            setupNoRandPartA();
-        }
-    }
-
-    private static final class Data extends Object {
-
-        // (with blockSize 900k)
-        final boolean[] inUse   = new boolean[256];                                   //      256 byte
-
-        final byte[] seqToUnseq   = new byte[256];                                    //      256 byte
-        final byte[] selector     = new byte[MAX_SELECTORS];                          //    18002 byte
-        final byte[] selectorMtf  = new byte[MAX_SELECTORS];                          //    18002 byte
-
-        /**
-            * Freq table collected to save a pass over the data during
-            * decompression.
-            */
-        final int[] unzftab = new int[256];                                           //     1024 byte
-
-        final int[][] limit = new int[N_GROUPS][MAX_ALPHA_SIZE];                      //     6192 byte
-        final int[][] base  = new int[N_GROUPS][MAX_ALPHA_SIZE];                      //     6192 byte
-        final int[][] perm  = new int[N_GROUPS][MAX_ALPHA_SIZE];                      //     6192 byte
-        final int[] minLens = new int[N_GROUPS];                                      //       24 byte
-
-        final int[]     cftab     = new int[257];                                     //     1028 byte
-        final char[]    getAndMoveToFrontDecode_yy = new char[256];                   //      512 byte
-        final char[][]  temp_charArray2d  = new char[N_GROUPS][MAX_ALPHA_SIZE];       //     3096 byte
-        final byte[] recvDecodingTables_pos = new byte[N_GROUPS];                     //        6 byte
-        //---------------
-        //    60798 byte
-
-        int[] tt;                                                                     //  3600000 byte
-        byte[] ll8;                                                                   //   900000 byte
-        //---------------
-        //  4560782 byte
-        //===============
-
-        Data(int blockSize100k) {
-            super();
-
-            this.ll8 = new byte[blockSize100k * BZip2Constants.baseBlockSize];
-        }
-
-        /**
-            * Initializes the {@link #tt} array.
-            *
-            * This method is called when the required length of the array
-            * is known.  I don't initialize it at construction time to
-            * avoid unnecessary memory allocation when compressing small
-            * files.
-            */
-        final int[] initTT(int length) {
-            int[] ttShadow = this.tt;
-
-            // tt.length should always be >= length, but theoretically
-            // it can happen, if the compressor mixed small and large
-            // blocks.  Normally only the last block will be smaller
-            // than others.
-            if ((ttShadow == null) || (ttShadow.length < length)) {
-                this.tt = ttShadow = new int[length];
-            }
-
-            return ttShadow;
-        }
-
     }

@@ -11,12 +11,8 @@ FileLib.BinaryReader = {}
 // or the contents as a string.
 // Returns "null" on error.
 FileLib.BinaryReader.New = function(fileOrContents)
-    if fileOrContents isa map and fileOrContents.hasIndex("get_content") then
-        fileOrContents = fileOrContents.get_content
-    end if
-    if fileOrContents == null or not fileOrContents isa string then
-        return null
-    end if
+    if fileOrContents == null then return null
+    if not (fileOrContents isa string) then fileOrContents = fileOrContents.get_content
     ret = new FileLib.BinaryReader
     ret.content = fileOrContents
 
@@ -261,4 +257,3 @@ FileLib.BinaryReader.NextUInt32BE = function()
     end if
     return ret
 end function
-    

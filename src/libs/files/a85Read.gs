@@ -11,6 +11,7 @@ FileLib.A85Reader._4y = "y".code
 
 FileLib.A85Reader.New = function(fileOrContents)
     ret = FileLib.BinaryReader.New(fileOrContents)
+	if ret == null then return null
 	ret.buffer_bit_size = 8
 	ret.load_buffer = @FileLib.A85Reader.decode_bytes
 	// For padding purposes, an implied 'uuuu' is added to the end of the
