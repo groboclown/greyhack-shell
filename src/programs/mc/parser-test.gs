@@ -1,9 +1,8 @@
 // Test the parser.
 
-//#require parser.gs
-//#require format/formatted-str.gs
-//#require errors.gs
-//#require tests.gs
+import_code("parser.gs")
+import_code("../../libs/errors.gs")
+import_code("../../libs/tests.gs")
 
 TestParse_empty = function(t)
     res = ParsedCommand.Parse("", {}, {})
@@ -66,7 +65,8 @@ TestParse_env = function(t)
 end function
 
 TestParse_context = function(t)
-    res = ParsedCommand.Parse("mycmd is [1] good", {}, {"": [{"": "tuna"}]})
+    context = {"ActivePage": "f", "Pages": {"f": [{"a": "tuna"}]}, "PagesMeta": {"f": {"Default": "a"}}}
+    res = ParsedCommand.Parse("mycmd is [1] good", {}, context)
     t.AssertDeepEqual(res, [
         ParsedCommand.Command.New("mycmd", [
             ParsedCommand.Argument.New(null, "is", null),
@@ -75,7 +75,9 @@ TestParse_context = function(t)
         ], []),
     ])
 
-    res = ParsedCommand.Parse("mycmd is [abc:2:name] good", {}, {"abc": [{}, {"name": "rat"}]})
+    context.Pages.abc = [{}, {"name": "rat"}]
+    context.PagesMeta.abc = {"Default": "x"}
+    res = ParsedCommand.Parse("mycmd is [abc:2:name] good", {}, context)
     t.AssertDeepEqual(res, [
         ParsedCommand.Command.New("mycmd", [
             ParsedCommand.Argument.New(null, "is", null),
@@ -84,6 +86,5 @@ TestParse_context = function(t)
         ], []),
     ])    
 end function
-
 
 if locals == globals then T.RunTests

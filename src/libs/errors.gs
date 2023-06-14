@@ -1,5 +1,7 @@
 // Error handling.
-//#require format/formatted-str.gs
+
+// Optional:
+//import_code("format/formatted-str.gs")
 
 if not globals.hasIndex("ErrorLib") then globals.ErrorLib = {}
 
@@ -21,44 +23,19 @@ end function
 
 ErrorLib.Error = {}
 
-ErrorLib.Error.New = function(args)
-    if args isa ErrorLib.Message then
+ErrorLib.Error.New = function(message, parameters=null)
+    if message isa ErrorLib.Message then
+        // parameters ends up being ignored.
         ret = new ErrorLib.Error
-        ret.Message = args
-        ret.Text = args.Text
+        ret.Message = message
+        ret.Text = message.Text
         return ret
     end if
 
-    p = {}
-    m = "unknown error"
-    if args == null then
-        // do nothing
-    else if args isa string then
-        m = args
-    else if args isa list then
-        if args.len == 2 and args[0] isa string and args[1] isa map then
-            m = args[0]
-            p = args[1]
-        else if args.len > 0 then
-            if args[0] isa string then
-                m = args[0]
-                args = args[1:]
-            end if
-            for idx in args.indexes
-                p["" + idx] = args[idx]
-            end for
-        end if
-    else if args isa map then
-        if args.hasIndex("Text") then
-            m = args["Text"]
-        else if args.hasIndex("message") then
-            m = args["message"]
-        else if args.hasIndex("msg") then
-            m = args["msg"]
-        end if
-    end if
+    if message == null then message = "unknown error"
+    if parameters == null then parameters = {}
     ret = new ErrorLib.Error
-    ret.Message = ErrorLib.Message.New(m, p)
+    ret.Message = ErrorLib.Message.New(message, parameters)
     ret.Text = ret.Message.Text
     return ret
 end function

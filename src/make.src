@@ -1,5 +1,5 @@
 // Grey Hack script to unpack an exported file and compile it in the game.
-// Version 2.0
+// Version 2.0.1
 
 if params.len > 0 and (params[0] == "-h" or params[0] == "--help") then
     exit("Usage: make (packed source file)")
@@ -254,7 +254,6 @@ end function
 
 
 FileLib.A85Reader = {}
-FileLib.A85Reader.alphabet = "!""#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstu"
 FileLib.A85Reader._zero = "!".code
 FileLib.A85Reader._85 = "u".code
 FileLib.A85Reader._4z = "z".code
@@ -583,6 +582,7 @@ blockTestFunc = function(tar)
     if res != "" and res != null then exit("Failed building " + name + ": " + res)
     out = GetFile(test_exec)
     if out == null then exit("Did not build " + source_fqn)
+    INFO("Launching test " + name)
     res = LaunchProgram(test_exec, null)
     if res != 1 then exit("Test " + name + " failed")
 end function

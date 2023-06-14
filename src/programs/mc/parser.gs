@@ -1,7 +1,6 @@
 // A command parser.
 
-ParsedCommand = {
-}
+ParsedCommand = {}
 
 
 ParsedCommand.Argument = {}
@@ -65,9 +64,7 @@ end function
 //
 // Context is a structure that contains named pages.  Pages are lists of
 // maps, which can be referenced through the context access via "[page:12:name]".
-// The context may have a default page named "" and each line may have a default
-// field named "".
-ParsedCommand.Parse = function(text, env, context)
+ParsedCommand.Parse = function(text, env, context, defaultPage)
     ret = []
     pos = 0
     stateStack = [{ "start": 0, "state": 0, "cmd": null, "args": [], "problems": [] }]
@@ -75,12 +72,12 @@ ParsedCommand.Parse = function(text, env, context)
     endCmd = function()
         if stateStack[-1].cmd != null then
             outer.ret.push(ParsedCommand.Command.New(stateStack[-1].cmd, stateStack[-1].args, stateStack[-1].problems))
-print("<color #ff00ff>DEBUG Push command " + stateStack[-1].cmd + "</color>")
+            // print("<color #ff00ff>DEBUG Push command " + stateStack[-1].cmd + "</color>")
         else if stateStack[-1].args.len > 0 or stateStack[-1].problems.len > 0 then
-print("<color #ff00ff>DEBUG Error state</color>")
+            // print("<color #ff00ff>DEBUG Error state</color>")
             outer.ret.push(ParsedCommand.Command.New(null, null, stateStack[-1].problems + ["invalid parse state"]))
         else
-print("<color #ff00ff>DEBUG Skip empty command</color>")
+            // print("<color #ff00ff>DEBUG Skip empty command</color>")
         end if
         stateStack[-1].cmd = ""
         stateStack[-1].args = []
@@ -489,13 +486,15 @@ end function
 
 
 ParsedCommand.parseContext = function(page, index, field, context)
+    if page == "" or page == null then page = context.ActivePage
     oi = index
     if index isa string then
         index = index.to_int
     end if
     if not index isa number then return null
-    if not context.hasIndex(page) then return null
-    page_list = context[page]
+    if not context.Pages.hasIndex(page) then return null
+    if field == "" or field == null then field = context.PagesMeta[page].Default
+    page_list = context.Pages[page]
     if not page_list isa list then return null
     if index < 0 then
         index = page_list.len - index

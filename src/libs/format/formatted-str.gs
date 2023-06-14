@@ -1,9 +1,7 @@
 // A Formatted String implementation.
 // Inspired by Python.
 
-if not globals.hasIndex("FormatStr") then
-    globals.FormatStr = {}
-end if
+if not globals.hasIndex("FormatStr") then globals.FormatStr = {}
 
 FormatStr.ESCAPES = {
     "n": char(10),

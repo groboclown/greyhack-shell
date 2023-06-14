@@ -67,8 +67,6 @@ The [monitor](src/programs/monitor) tool uses the [context](#library-context) to
 The [mc](src/programs/mc) tool is an advanced shell that allows running command-lets and widgets with the [context](#library-context) to give an easier terminal experience.
 
 
-# 
-
 ## Game File Layout
 
 This repository expects the files in the game to be laid out just like the repository.

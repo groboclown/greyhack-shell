@@ -13,12 +13,13 @@
     },
     {
         "type": "compile",
-        "local": "../src/widgets/process.gs",
-        "target": "~/bin/widgets/process"
-    },
-    {
-        "type": "compile",
         "local": "../src/programs/mc/main.gs",
-        "target": "~/bin/mc"
+        "target": "~/bin/mc",
+        "local-tests": [
+            "../src/libs/context/*-test.gs",
+            "../src/libs/format/*-test.gs",
+            "../src/libs/files/*-test.gs",
+            "../src/programs/mc/*-test.gs"
+        ]
     }
 ]

@@ -1,36 +1,55 @@
 // A Shell Replacement
 
-import_code("../libs/format/formatted-str.gs")
-import_code("../libs/files/paths.gs")
-import_code("../libs/files/star-glob.gs")
+// All the imports...
+import_code("../../libs/format/formatted-str.gs")
+import_code("../../libs/errors.gs")
+import_code("../../libs/files/paths.gs")
+import_code("../../libs/files/json.gs")
+import_code("../../libs/context/get.gs")
+import_code("../../libs/context/pages-create.gs")
+import_code("../../libs/context/pages-read.gs")
+import_code("../../libs/context/pages-send.gs")
+import_code("../../libs/context/session.gs")
+import_code("../../libs/context/logs.gs")
+
+import_code("config.gs")
 import_code("fd.gs")
+import_code("parser.gs")
 import_code("ui.gs")
-import_code("session.gs")
-import_code("cmdlet.gs")
-import_code("parser")
+import_code("page-controller.gs")
 
 
-// Architecture:
-//   The mc shell has "command-lets" that allow for interactivity, essentially
-//   command line tools.  They are invoked via "launch" and share the "pages"
-//   and arguments through the parent process' shared object.
-//
-//   The "Pages" is a bit like a global clip-board, and easily referenced
-//   from the command-line or viewed through a widget.  It contains named "pages", which
-//   are lists of maps.
-//
-//   The shell also has sessions, that have a current login / host.  The command-lets operate
-//   on this session.  Sessions have hooks, that allow for configured behavior.
-//   Run on open, run before command, run after command, run on close.  This allows for
-//   remote shell operations.
-//
-//   
+context = ContextLib.Get()
+config = MCConfig.Load(context)
+if config == null then exit("Failed to load config\n" + FormatStr.PyFormat("{err}", {"err":context.Errors}))
+ui = UI.New()
+print("Loading config into ui")
+ui.LoadConfig(config.Section("ui"))
 
-session = UserSession.New()
-terminal = Terminal.New(session)
+// Default page is the logs.
+context.ActivePage = ContextLib.LogPage.Name
+
+// Test page
+ContextLib.Log("info", "Test log line", {})
 
 while true
-    cmd = terminal.Prompt()
-    if cmd == "exit" then exit
-    session.AddCmdToHistory(cmd)
+    session = ContextLib.GetSession(context)
+    print("Using active page " + context.ActivePage)
+    screen = ui.Draw(context, session)
+    clear_screen()
+    for line in screen[0]
+        print(line)
+    end for
+    line = user_input(screen[1])
+    if line == "exit" then exit
+    cmdList = ParsedCommand.Parse(line, session.env, context)
+    for cmd in cmdList
+        for err in cmd.Errors
+            context.Errors.push(err)
+        end for
+        if cmd.Name == "+" then
+            PageController.Run(cmd.Args, context)
+        end if
+    end for
+    // session.AddCmdToHistory(cmd)
 end while

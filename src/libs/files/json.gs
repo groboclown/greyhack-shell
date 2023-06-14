@@ -257,7 +257,7 @@ end function
 // Generating JSON
 
 FileLib.Json._listToJSON = function(lst, compact, indent)
-	ws = (_eol + "  "*(indent+1)) * (not compact)
+	ws = (FileLib.Json._eol + "  "*(indent+1)) * (not compact)
 	parts = ["[", ws]
 	first = true
 	for item in lst
@@ -268,13 +268,13 @@ FileLib.Json._listToJSON = function(lst, compact, indent)
 		parts.push FileLib.Json.toJSON(item, compact, indent+1)
 		first = false
 	end for
-	if not compact then parts.push _eol + "  " * indent
+	if not compact then parts.push FileLib.Json._eol + "  " * indent
 	parts.push "]"
 	return join(parts, "")
 end function
 
 FileLib.Json._mapToJSON = function(lst, compact, indent)
-	ws = (_eol + "  "*(indent+1)) * (not compact)
+	ws = (FileLib.Json._eol + "  "*(indent+1)) * (not compact)
 	parts = ["{", ws]
 	first = true
 	for kv in lst
@@ -288,7 +288,7 @@ FileLib.Json._mapToJSON = function(lst, compact, indent)
 		parts.push FileLib.Json.toJSON(@kv.value, compact, indent+1)
 		first = false
 	end for
-	if not compact then parts.push _eol + "  " * indent
+	if not compact then parts.push FileLib.Json._eol + "  " * indent
 	parts.push "}"
 	return join(parts, "")
 end function

@@ -1038,11 +1038,11 @@ def parse_compile_block(
         return False
     source_name = f"{TEMP_DIR}/build.source/{os.path.basename(local_file)}"
     blocks.add_local_source_file(source_name, os.path.join(context_dir, local_file))
-    blocks.add_build(source_name, target)
+    # Tests run before the target builds.
+    ret = True
     if test_files and isinstance(test_files, (str, list, tuple)):
-        # Just run that logic.
-        # Ignore problems with it?
-        return parse_test_block(
+        # Ignore problem?
+        ret = parse_test_block(
             blocks,
             {
                 "name": os.path.splitext(os.path.basename(local_file))[0],
@@ -1050,7 +1050,8 @@ def parse_compile_block(
             },
             context_dir,
         )
-    return True
+    blocks.add_build(source_name, target)
+    return ret
 
 
 def parse_user_block(
