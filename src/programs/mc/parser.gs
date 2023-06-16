@@ -23,6 +23,11 @@ ParsedCommand.Command.New = function(name, args, errors)
     ret.Name = name
     ret.Args = args
     ret.Errors = errors
+
+    // This hasn't been implemented yet.  It's goal is to
+    // support ";", "&&", and "||" style tie-ins.
+    ret.NextInvocation = 0
+
     return ret
 end function
 
@@ -131,11 +136,11 @@ ParsedCommand.Parse = function(text, env, context, defaultPage)
 
             else if c == ParsedCommand.CharClass.SE or c == "" then
                 // semi-colon; end the command.
-print("<color #ff00ff>DEBUG EOC " + stateStack[-1].start + "-" + pos + "</color>")
+//print("<color #ff00ff>DEBUG EOC " + stateStack[-1].start + "-" + pos + "</color>")
                 stateStack[-1].cmd = text[stateStack[-1].start:pos]
-print("<color #ff00ff>DEBUG == " + stateStack[-1].cmd + "</color>")
+//print("<color #ff00ff>DEBUG == " + stateStack[-1].cmd + "</color>")
                 endCmd()
-print("<color #ff00ff>DEBUG == total commands " + ret.len + "</color>")
+//print("<color #ff00ff>DEBUG == total commands " + ret.len + "</color>")
                 stateStack[-1].state = 0
 
             else if c == ParsedCommand.CharClass.DL then

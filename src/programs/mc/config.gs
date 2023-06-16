@@ -87,3 +87,23 @@ MCConfig.sec.Str = function(key, defaultValue)
     end if
     return defaultValue
 end function
+
+MCConfig.sec.StrList = function(key, defaultValue)
+    if self.cfg.hasIndex(key) then
+        ret = self.cfg[key]
+        if ret isa string then return [ret]
+        if ret isa number then return [str(ret)]
+        if ret isa list then
+            listRes = []
+            for item in ret
+                if item isa string then
+                    listRes.push(item)
+                else if item isa number then
+                    listRes.push(str(ret))
+                end if
+            end for
+            return listRes
+        end if
+    end if
+    return defaultValue
+end function

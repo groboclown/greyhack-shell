@@ -20,6 +20,7 @@ A "page" in the context object has these aspects:
 * Rows: A page contains an ordered list of rows, which are themselves maps of named fields.  The field values should be simple values (strings, numbers, booleans), but can be anything.  However, it's highly recommended to make them strongly typed.  This is stored in the context `Pages` attribute.
 * Meta-data: a description of the fields that the page contains.  The meta-data for a page contains:
     * `Default` - (optional) a string with the default field used to indicate which field is the primary usage - for example, a file list page may use the file path as the default field instead of file size.
+    * `Description` - (optional) a string describing what the page is for.
     * `Text` - (optional) a function that accepts the whole row as an argument and returns a human readable string.  Without this, the row field should have a 'Text' entry to make human readable versions of the row.
     * `Fields` - A map, keyed with each row's field name to a map of information about the row.
 

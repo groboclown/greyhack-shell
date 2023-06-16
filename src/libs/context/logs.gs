@@ -76,7 +76,7 @@ ContextLib.LogPage.Text = function(row)
     end if
     return ""
 end function
-ContextLib.LogPage.GetLevelColor = function(row)
+ContextLib__LogPage__GetLevelColor = function(row)
     if row != null and row isa map and row.hasIndex("level") and ContextLib.LogPage.LogLevels.hasIndex(row.level) then
         return ContextLib.LogPage.LogLevels[row.level].color
     end if
@@ -87,11 +87,13 @@ ContextLib.LogPage.Metadata = {
     "Default": "msg",
     "minlevel": ContextLib.LogPage.LogLevels[ContextLib.LogPage.INFO].level,
     "Text": @ContextLib.LogPage.Text,
+    "Description": "Command logs",
     "Fields": {
         "level": {
             "Description": "Log level of the output",
             "Order": 1,
             "Color": "#606060",
+            "Width": 4,
         },
         "msg": {
             "Description": "Raw message text",
@@ -102,7 +104,9 @@ ContextLib.LogPage.Metadata = {
         "text": {
             "Description": "Log text",
             "Order": 2,
-            "Color": @(ContextLib.LogPage.GetLevelColor),
+            // This only seems to work if the function is not contained in an object.
+            // Otherwise, referencing the function seems to call it.
+            "Color": @ContextLib__LogPage__GetLevelColor,
         },
     },
 }

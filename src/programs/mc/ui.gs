@@ -4,6 +4,7 @@
 // import_code("../../libs/context/pages-read.gs")
 // import_code("../../libs/context/logs.gs")
 // import_code("../../libs/format/formatted-str.gs")
+// import_code("../../libs/std-lib/sort.gs")
 
 UI = {}
 
@@ -129,16 +130,22 @@ UI._draw_row = function(row, orderedFields)
     ret = ""
     first = true
     col = 0
+    remaining = self.Width
     for field in orderedFields
         if first then
             first = false
-        else
+        else if self.ColSep.len < remaining then
             ret = ret + self.ColSep
             col = col + self.ColSep.len
+            remaining = remaining - self.ColSep.len
+        else
+            remaining = 0
+            break
         end if
-        color = @field.Color
-        if @color isa funcRef then
-            color = color(row)
+        if @field.Color isa funcRef then
+            color = field.Color(row)
+        else
+            color = field.Color
         end if
         ret = ret + "<color=" + color + ">"
         val = "()"
@@ -150,12 +157,22 @@ UI._draw_row = function(row, orderedFields)
         if not val isa string then
             val = FormatStr._as_str(val)
         end if
-        p = 0
-        while p < val.len and col < self.Width
-            ret = ret + val[p]
-            p = p + 1
-            col = col + 1
-        end while
+
+        colWidth = field.Width
+        if colWidth > remaining then
+            colWidth = remaining
+        end if
+        remaining = remaining - colWidth
+        if colWidth < val.len then
+            ret = ret + val[0:colWidth]
+        else
+            ret = ret + val
+            colWidth = colWidth - val.len
+            while colWidth > 0
+                ret = ret + " "
+                colWidth = colWidth - 1
+            end while
+        end if
         ret = ret + "</color>"
     end for
     return ret
@@ -166,66 +183,54 @@ UI._get_ordered_fields = function(fieldMetadata)
     // Needs a sort implementation.
     // Instead, we'll just assume that people know what they're doing.
     ret = []
-    pos = 1
     fixedWidths = 0
     hasFixedWidths = 0
     needsWidth = []
-    while true
-        found = false
-        for key in fieldMetadata.indexes
-            field = fieldMetadata[key]
-            if field.hasIndex("Order") then
-                // There's no short circuit for 'and'...
-                if field.Order != pos then continue
-                color = "#808080"
-                if field.hasIndex("Color") then color = @field.Color
-                text = null
-                if field.hasIndex("Text") then text = @field.Text
-                width = null
-                // Only supporting fixed-width columns.  Pecent based column
-                // width would be fun.
-                if field.hasIndex("Width") and field.Width isa number then
-                    width = field.Width
-                    // This looks like a fence-post error, but we make up this last
-                    // column separator by adding it to the final remaining width.
-                    fixedWidths = fixedWidths + width + self.ColSep.len
-                    hasFixedWidths = 1
-                end if
-                value = {"Name": key, "Color": @color, "Text": @text, "Width": width}
-                ret.push(value)
-                if width == null then needsWidth.push(value)
-                found = true
-                break
+    for key in fieldMetadata.indexes
+        field = fieldMetadata[key]
+        if field.hasIndex("Order") then
+            color = "#808080"
+            if field.hasIndex("Color") then color = @field.Color
+            text = null
+            if field.hasIndex("Text") then text = @field.Text
+            width = null
+            // Only supporting fixed-width columns.  Pecent based column
+            // width would be fun.
+            if field.hasIndex("Width") and field.Width isa number then
+                width = field.Width
+                // This looks like a fence-post error, but we make up this last
+                // column separator by adding it to the final remaining width.
+                fixedWidths = fixedWidths + width + self.ColSep.len
+                hasFixedWidths = 1
             end if
-        end for
-        if not found then break
-        pos = pos + 1
-    end while
+            value = {"Name": key, "Color": @color, "Text": @text, "Width": width, "Order": field.Order}
+            ret.push(value)
+            if width == null then needsWidth.push(value)
+        end if
+    end for
 
     // Calculate field width.
     // This is done by spreading the remaining width amongst all
     // the needs-width fields.
     // Here's the counting method:
     //   We have F columns taken up by the fixed width columns,
-    //     which includes the column separators between them and one the end.
+    //     which includes the column separators between them and one the end,
+    //     but only if there's at least one fixed-column width field.
     //   We have N columns that need width assigned.
     //   We have W total columns to fill.
     //   Between each column is B separator columns.
-    //
-    //   So, we need to solve for x:
-    //      W = F + (N * (x + B)) - B
-    //   x = ((W + B - F) / N) - B
-    // The inner parenthesis - W + B - F, is:
     remainingWidth = self.Width - fixedWidths + (self.ColSep.len * hasFixedWidths)
     if needsWidth.len > 0 then
         // Spread the remaining width to the non-width columns.
-        // perCol is the "x" in the above formula.
-        perCol = floor(remainingWidth / needsWidth.len) - self.ColSep.len
+        perCol = floor((remainingWidth + self.ColSep.len) / needsWidth.len) - self.ColSep.len
         for fw in needsWidth
             fw.Width = perCol
-            remainingWidth = remainingWidth - perCol
+            remainingWidth = remainingWidth - perCol - self.ColSep.len
         end for
     end if
+
+    StdLib.QuickSort(ret, @UI._field_sorter)
+
     if remainingWidth > 0 and ret.len > 0 then
         // Add the remaining width to the last field.
         ret[-1].Width = ret[-1].Width + remainingWidth
@@ -233,6 +238,10 @@ UI._get_ordered_fields = function(fieldMetadata)
     // If ret.len > 0 and remainingWidth <= 0 then don't do anything;
     // the normal display choppy chop does the work for us.
     return ret
+end function
+
+UI._field_sorter = function(a, b)
+    return a.Order - b.Order
 end function
 
 // _split_lines() Splits text into multiple lines.

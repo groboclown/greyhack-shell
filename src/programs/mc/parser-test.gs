@@ -52,6 +52,17 @@ TestParse_named_args = function(t)
         res)
 end function
 
+TestParse_example1 = function(t)
+    res = ParsedCommand.Parse("+ ?", {}, {})
+    t.AssertDeepEqual(
+        [
+            ParsedCommand.Command.New("+", [
+                ParsedCommand.Argument.New(null, "?", null),
+            ], []),
+        ],
+        res)
+end function
+
 TestParse_env = function(t)
     res = ParsedCommand.Parse("mycmd is ${abc} good", {"abc": "tuna"}, {})
     t.AssertDeepEqual(
