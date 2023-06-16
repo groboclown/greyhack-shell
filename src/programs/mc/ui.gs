@@ -38,6 +38,7 @@ UI.New = function()
     return ret
 end function
 
+// LoadConfig() Load the configuration from a JSON section.
 UI.LoadConfig = function(section)
     self.Width = section.Int("width", self.Width)
     self.Height = section.Int("height", self.Height)
@@ -167,6 +168,7 @@ UI._get_ordered_fields = function(fieldMetadata)
     ret = []
     pos = 1
     fixedWidths = 0
+    hasFixedWidths = 0
     needsWidth = []
     while true
         found = false
@@ -183,14 +185,15 @@ UI._get_ordered_fields = function(fieldMetadata)
                 // Only supporting fixed-width columns.  Pecent based column
                 // width would be fun.
                 if field.hasIndex("Width") and field.Width isa number then
-                    width = field.hasIndex("Width")
+                    width = field.Width
                     // This looks like a fence-post error, but we make up this last
                     // column separator by adding it to the final remaining width.
                     fixedWidths = fixedWidths + width + self.ColSep.len
-                else
-                    needsWidth.push(field)
+                    hasFixedWidths = 1
                 end if
-                ret.push({"Name": key, "Color": @color, "Text": @text, "Width": width})
+                value = {"Name": key, "Color": @color, "Text": @text, "Width": width}
+                ret.push(value)
+                if width == null then needsWidth.push(value)
                 found = true
                 break
             end if
@@ -202,21 +205,33 @@ UI._get_ordered_fields = function(fieldMetadata)
     // Calculate field width.
     // This is done by spreading the remaining width amongst all
     // the needs-width fields.
-    remainingWidth = self.Width - fixedWidths
+    // Here's the counting method:
+    //   We have F columns taken up by the fixed width columns,
+    //     which includes the column separators between them and one the end.
+    //   We have N columns that need width assigned.
+    //   We have W total columns to fill.
+    //   Between each column is B separator columns.
+    //
+    //   So, we need to solve for x:
+    //      W = F + (N * (x + B)) - B
+    //   x = ((W + B - F) / N) - B
+    // The inner parenthesis - W + B - F, is:
+    remainingWidth = self.Width - fixedWidths + (self.ColSep.len * hasFixedWidths)
     if needsWidth.len > 0 then
         // Spread the remaining width to the non-width columns.
+        // perCol is the "x" in the above formula.
         perCol = floor(remainingWidth / needsWidth.len) - self.ColSep.len
-        lastCol = remainingWidth - (perCol * needsWidth.len - 1) + self.ColSep.len
         for fw in needsWidth
             fw.Width = perCol
+            remainingWidth = remainingWidth - perCol
         end for
-        needsWidth[-1].Width = lastCol
-    else if remainingWidth > 0 and ret.len > 0 then
-        // Add the remaining width to the last field.
-        ret[-1].Width = ret[-1].Width + remainingWidth + self.ColSep.len
-    else if ret.len > 0 then
-        ret[-1].Width = ret[-1].Width + self.ColSep.len
     end if
+    if remainingWidth > 0 and ret.len > 0 then
+        // Add the remaining width to the last field.
+        ret[-1].Width = ret[-1].Width + remainingWidth
+    end if
+    // If ret.len > 0 and remainingWidth <= 0 then don't do anything;
+    // the normal display choppy chop does the work for us.
     return ret
 end function
 

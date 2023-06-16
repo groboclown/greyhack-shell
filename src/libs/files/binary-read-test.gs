@@ -24,13 +24,13 @@ TestOneBitReaderNextBit = function(t)
     reader.load_buffer = @bit_reader
 
     t.AssertTrue(reader.HasMore, "more 1")
-    t.AssertEqual(reader.NextBit, 1)
+    t.AssertEqual(1, reader.NextBit)
     t.AssertTrue(reader.HasMore, "more 2")
-    t.AssertEqual(reader.NextBit, 0)
+    t.AssertEqual(0, reader.NextBit)
     t.AssertTrue(reader.HasMore, "more 3")
-    t.AssertEqual(reader.NextBit, 1)
+    t.AssertEqual(1, reader.NextBit)
     t.AssertTrue(reader.HasMore, "more 4")
-    t.AssertEqual(reader.NextBit, 1)
+    t.AssertEqual(1, reader.NextBit)
     t.AssertFalse(reader.HasMore, "more 5")
     t.AssertNull(reader.NextBit)
     t.AssertFalse(reader.HasMore, "more 6")
@@ -42,7 +42,7 @@ TestOneBitReaderNextUInt8 = function(t)
     reader.load_buffer = @bit_reader
 
     t.AssertTrue(reader.HasMore)
-    t.AssertEqual(reader.NextUInt8, 204)
+    t.AssertEqual(204, reader.NextUInt8)
     t.AssertFalse(reader.HasMore)
     t.AssertNull(reader.NextUInt8)
 end function
@@ -53,7 +53,7 @@ TestOneBitReaderNextSInt8 = function(t)
     reader.load_buffer = @bit_reader
 
     t.AssertTrue(reader.HasMore)
-    t.AssertEqual(reader.NextSInt8, -52)
+    t.AssertEqual(-52, reader.NextSInt8)
     t.AssertFalse(reader.HasMore)
     t.AssertNull(reader.NextSInt8)
 end function
@@ -65,11 +65,11 @@ TestOneBitReaderMixed = function(t)
     reader.load_buffer = @bit_reader
 
     t.AssertTrue(reader.HasMore)
-    t.AssertEqual(reader.NextUInt8, 204)
+    t.AssertEqual(204, reader.NextUInt8)
     t.AssertTrue(reader.HasMore)
     t.AssertNull(reader.NextSInt8)
     t.AssertTrue(reader.HasMore)
-    t.AssertEqual(reader.NextBit, 0)
+    t.AssertEqual(0, reader.NextBit)
     t.AssertFalse(reader.HasMore)
 end function
 

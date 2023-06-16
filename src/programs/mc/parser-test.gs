@@ -11,80 +11,96 @@ end function
 
 TestParse_one_cmd = function(t)
     res = ParsedCommand.Parse("mycmd", {}, {})
-    t.AssertDeepEqual(res, [
-        ParsedCommand.Command.New("mycmd", [], []),
-    ])    
+    t.AssertDeepEqual(
+        [
+            ParsedCommand.Command.New("mycmd", [], []),
+        ],
+        res)
 end function
 
 TestParse_two_cmds = function(t)
     res = ParsedCommand.Parse("mycmd ; other", {}, {})
-    t.AssertDeepEqual(res, [
-        ParsedCommand.Command.New("mycmd", [], []),
-        ParsedCommand.Command.New("other", [], []),
-    ])    
+    t.AssertDeepEqual(
+        [
+            ParsedCommand.Command.New("mycmd", [], []),
+            ParsedCommand.Command.New("other", [], []),
+        ],
+        res)
 end function
 
 TestParse_simple_args = function(t)
     res = ParsedCommand.Parse("mycmd is fun", {}, {})
-    t.AssertDeepEqual(res, [
-        ParsedCommand.Command.New("mycmd", [
-            ParsedCommand.Argument.New(null, "is", null),
-            ParsedCommand.Argument.New(null, "fun", null),
-        ], []),
-    ])    
+    t.AssertDeepEqual(
+        [
+            ParsedCommand.Command.New("mycmd", [
+                ParsedCommand.Argument.New(null, "is", null),
+                ParsedCommand.Argument.New(null, "fun", null),
+            ], []),
+        ],
+        res)
 end function
 
 TestParse_named_args = function(t)
     res = ParsedCommand.Parse("mycmd --is --fun=yes", {}, {})
-    t.AssertDeepEqual(res, [
-        ParsedCommand.Command.New("mycmd", [
-            ParsedCommand.Argument.New("is", true, null),
-            ParsedCommand.Argument.New("fun", "yes", null),
-        ], []),
-    ])    
+    t.AssertDeepEqual(
+        [
+            ParsedCommand.Command.New("mycmd", [
+                ParsedCommand.Argument.New("is", true, null),
+                ParsedCommand.Argument.New("fun", "yes", null),
+            ], []),
+        ],
+        res)
 end function
 
 TestParse_env = function(t)
     res = ParsedCommand.Parse("mycmd is ${abc} good", {"abc": "tuna"}, {})
-    t.AssertDeepEqual(res, [
-        ParsedCommand.Command.New("mycmd", [
-            ParsedCommand.Argument.New(null, "is", null),
-            ParsedCommand.Argument.New(null, "tuna", null),
-            ParsedCommand.Argument.New(null, "good", null),
-        ], []),
-    ])    
+    t.AssertDeepEqual(
+        [
+            ParsedCommand.Command.New("mycmd", [
+                ParsedCommand.Argument.New(null, "is", null),
+                ParsedCommand.Argument.New(null, "tuna", null),
+                ParsedCommand.Argument.New(null, "good", null),
+            ], []),
+        ],
+        res)
 
     res = ParsedCommand.Parse("mycmd is $abc good", {"abc": "tuna"}, {})
-    t.AssertDeepEqual(res, [
-        ParsedCommand.Command.New("mycmd", [
-            ParsedCommand.Argument.New(null, "is", null),
-            ParsedCommand.Argument.New(null, "tuna", null),
-            ParsedCommand.Argument.New(null, "good", null),
-        ], []),
-    ])    
+    t.AssertDeepEqual(
+        [
+            ParsedCommand.Command.New("mycmd", [
+                ParsedCommand.Argument.New(null, "is", null),
+                ParsedCommand.Argument.New(null, "tuna", null),
+                ParsedCommand.Argument.New(null, "good", null),
+            ], []),
+        ],
+        res)
 end function
 
 TestParse_context = function(t)
     context = {"ActivePage": "f", "Pages": {"f": [{"a": "tuna"}]}, "PagesMeta": {"f": {"Default": "a"}}}
     res = ParsedCommand.Parse("mycmd is [1] good", {}, context)
-    t.AssertDeepEqual(res, [
-        ParsedCommand.Command.New("mycmd", [
-            ParsedCommand.Argument.New(null, "is", null),
-            ParsedCommand.Argument.New(null, "tuna", null),
-            ParsedCommand.Argument.New(null, "good", null),
-        ], []),
-    ])
+    t.AssertDeepEqual(
+        [
+            ParsedCommand.Command.New("mycmd", [
+                ParsedCommand.Argument.New(null, "is", null),
+                ParsedCommand.Argument.New(null, "tuna", null),
+                ParsedCommand.Argument.New(null, "good", null),
+            ], []),
+        ],
+        res)
 
     context.Pages.abc = [{}, {"name": "rat"}]
     context.PagesMeta.abc = {"Default": "x"}
     res = ParsedCommand.Parse("mycmd is [abc:2:name] good", {}, context)
-    t.AssertDeepEqual(res, [
-        ParsedCommand.Command.New("mycmd", [
-            ParsedCommand.Argument.New(null, "is", null),
-            ParsedCommand.Argument.New(null, "rat", null),
-            ParsedCommand.Argument.New(null, "good", null),
-        ], []),
-    ])    
+    t.AssertDeepEqual(
+        [
+            ParsedCommand.Command.New("mycmd", [
+                ParsedCommand.Argument.New(null, "is", null),
+                ParsedCommand.Argument.New(null, "rat", null),
+                ParsedCommand.Argument.New(null, "good", null),
+            ], []),
+        ],
+        res)
 end function
 
 if locals == globals then T.RunTests

@@ -21,7 +21,16 @@ A "page" in the context object has these aspects:
 * Meta-data: a description of the fields that the page contains.  The meta-data for a page contains:
     * `Default` - (optional) a string with the default field used to indicate which field is the primary usage - for example, a file list page may use the file path as the default field instead of file size.
     * `Text` - (optional) a function that accepts the whole row as an argument and returns a human readable string.  Without this, the row field should have a 'Text' entry to make human readable versions of the row.
-    * `Fields` - A map, keyed with each row's field name to a map of information about the row.  If the field name contains a `Text` entry, then that is assumed to be a function that accepts the field value and returns a human readable string.
+    * `Fields` - A map, keyed with each row's field name to a map of information about the row.
+
+The `Fields` in the meta-data has a special set of conventions to help with dynamic inspection tools.  Specifically, it can have these keys:
+
+* `Description` - a string that describes the field.  Useful for help screens.
+* `Order` - a number that indicates in what order to display this field.  It's assumed that fields without an Order will not be displayed.  It's also assumed that these start at 1 and are strictly increasing by 1.  That is, if a field as 1 and another has 3, then there should be one with 2.
+* `Color` - a string for the color to display this field (e.g. `#a0ff20`).  This can also be a function, in which case it's passed the whole row, and returns the field's display color.
+* `Width` - a number representing a hint at how many characters the field should take up.  Useful for tabular display of the field.
+* `Text` - if given, a function that's passed the field's value, and returns a string to display.
+
 
 ## Sessions
 

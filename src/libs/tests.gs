@@ -88,7 +88,7 @@ T.T._text = function(text)
 end function
 
 // T.T.AssertEqual
-T.T.AssertEqual = function(actual, expected, text=null)
+T.T.AssertEqual = function(expected, actual, text=null)
     if actual != expected then
         return self.Fail("expected [{expected}], found [{actual}]{text}", {"expected": expected, "actual": actual, "text": self._text(text)})
     end if
@@ -96,7 +96,7 @@ T.T.AssertEqual = function(actual, expected, text=null)
 end function
 
 // T.T.AssertEqualAny
-T.T.AssertEqualAny = function(actual, expectedList, text=null)
+T.T.AssertEqualAny = function(expectedList, actual, text=null)
     for expected in expectedList
         if actual == expected then
             return false
@@ -106,7 +106,7 @@ T.T.AssertEqualAny = function(actual, expectedList, text=null)
 end function
 
 // T.T.AssertNotEqual
-T.T.AssertNotEqual = function(actual, expected, text=null)
+T.T.AssertNotEqual = function(expected, actual, text=null)
     if actual == expected then
         self.Fail("found {expected}{text}", {"expected": expected, "actual": actual, "text": self._text(text)})
         return true
@@ -133,7 +133,7 @@ T.T.AssertNotNull = function(actual, text=null)
 end function
 
 // T.T.AssertDeepEqual
-T.T.AssertDeepEqual = function(actual, expected, text=null)
+T.T.AssertDeepEqual = function(expected, actual, text=null)
     seen = []
     hasSeen = function(val)
         for v in seen
@@ -142,7 +142,7 @@ T.T.AssertDeepEqual = function(actual, expected, text=null)
         return false
     end function
 
-    deepUnequal = function(a1, e1)
+    deepUnequal = function(e1, a1)
         // quick checks
         if @e1 == null and @a1 == null then return false
         if @e1 == null and @a1 != null then return true
@@ -193,7 +193,7 @@ T.T.AssertDeepEqual = function(actual, expected, text=null)
         return false
     end function
 
-    if deepUnequal(actual, expected) then
+    if deepUnequal(expected, actual) then
         return self.Fail("expected {expected}, found {actual}{text}", {"expected": expected, "actual": actual, "text": self._text(text)})
     end if
     return false

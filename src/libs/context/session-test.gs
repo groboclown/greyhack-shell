@@ -26,9 +26,9 @@ TestSession_AddSession_fails = function(t)
     context.NamedSessions.local.shell.connect_service = @mockConnect
 
     res = ContextLib.AddSession(context, "foo", "0.0.0.0", 1, "u", "p")
-    t.AssertDeepEqual(calledWith, [{"ip": "0.0.0.0", "port": 1, "user": "u", "pass": "p"}])
+    t.AssertDeepEqual([{"ip": "0.0.0.0", "port": 1, "user": "u", "pass": "p"}], calledWith)
     t.AssertNull(res, "add session result")
-    t.AssertEqual(context.Errors.len, 1)
+    t.AssertEqual(1, context.Errors.len)
 end function
 
 

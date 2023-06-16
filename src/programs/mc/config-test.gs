@@ -28,7 +28,7 @@ TestConfig_Load = function(t)
         print("Config: [" + k + "]")
     end for
 
-    t.AssertEqual(cfg.Section("s1").Int("anum"), 2)
+    t.AssertEqual(2, cfg.Section("s1").Int("anum"))
 end function
 
 if locals == globals then T.RunTests

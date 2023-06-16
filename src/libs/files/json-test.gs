@@ -73,14 +73,14 @@ TestJsonParse_complex = function(t)
 end function
 
 TestJson_toJSON = function(t)
-	t.AssertEqual FileLib.Json.toJSON(42), "42"
-	t.AssertEqual FileLib.Json.toJSON(char(9)), """\t"""
-	t.AssertEqual FileLib.Json.toJSON([1, 2, 3], true), "[1,2,3]"
+	t.AssertEqual "42", FileLib.Json.toJSON(42)
+	t.AssertEqual """\t""", FileLib.Json.toJSON(char(9))
+	t.AssertEqual "[1,2,3]", FileLib.Json.toJSON([1, 2, 3], true)
 	// Maps are a bit tricky to unit-test, since the order in which the keys appear
 	// is undefined.  But here we go:
-	t.AssertEqualAny FileLib.Json.toJSON({"one":1, "two":2}, true), 
-		["{""one"":1,""two"":2}", "{""two"":2,""one"":1}"]
-
+	t.AssertEqualAny(
+		["{""one"":1,""two"":2}", "{""two"":2,""one"":1}"],
+		FileLib.Json.toJSON({"one":1, "two":2}, true))
 end function
 
 if locals == globals then T.RunTests

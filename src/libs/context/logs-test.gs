@@ -23,10 +23,10 @@ TestLogs_empty_simple = function(t)
     context = ContextLib.Get()
     entry = ContextLib.NextPageRow(context, ContextLib.LogPage.Name)
     if t.AssertNotNull(entry, "null first row") then return
-    t.AssertEqual(entry.level, "error")
-    t.AssertEqual(entry.text, "simple")
-    t.AssertEqual(entry.msg, "simple")
-    t.AssertEqual(entry.args, {})
+    t.AssertEqual("error", entry.level)
+    t.AssertEqual("simple", entry.text)
+    t.AssertEqual("simple", entry.msg)
+    t.AssertDeepEqual({}, entry.args)
 end function
 
 if locals == globals then T.RunTests
