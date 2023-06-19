@@ -55,13 +55,21 @@ UI.Draw = function(context, session)
     errors = self._draw_errors(context)
     page = self._draw_page(context, self.Height - promptLines.len - errors.len - 2)
     prompt = promptLines[-1]
-    sep = [self._draw_separator()]
-    screen = page + sep + errors + sep + promptLines[:-1]
+    sep = 
+    screen = ([self._draw_separator(context.ActivePage)] +
+        page +
+        [self._draw_separator("Errors")] +
+        errors +
+        [self._draw_separator("")] +
+        promptLines[:-1])
     return [screen, prompt]
 end function
 
-UI._draw_separator = function()
+UI._draw_separator = function(header)
     ret = "<color=" + self.SepColor + ">"
+    tail = header.len
+    if tail + 1 > self.Width then tail = self.Width - 2
+    ret = ret + header[:tail] + " "
     while ret.len < self.Width
         ret = ret + self.LineSep
     end while
@@ -149,7 +157,9 @@ UI._draw_row = function(row, orderedFields)
         end if
         ret = ret + "<color=" + color + ">"
         val = "()"
-        if row.hasIndex(field.Name) then val = row[field.Name]
+        key = field.Name
+        print(FormatStr.PyFormat("Getting field [{key}] from row [{row}]", {"key":key, "row":row}))
+        if row.hasIndex(key) then val = row[key]
         // if field.hasIndex("Text") then
             // This line seems buggy.
             // val = field.Text(val)

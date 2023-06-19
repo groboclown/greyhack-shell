@@ -76,7 +76,7 @@ ContextLib.LogPage.Text = function(row)
     end if
     return ""
 end function
-ContextLib__LogPage__GetLevelColor = function(row)
+ContextLib.LogPage.GetLevelColor = function(row)
     if row != null and row isa map and row.hasIndex("level") and ContextLib.LogPage.LogLevels.hasIndex(row.level) then
         return ContextLib.LogPage.LogLevels[row.level].color
     end if
@@ -104,12 +104,12 @@ ContextLib.LogPage.Metadata = {
         "text": {
             "Description": "Log text",
             "Order": 2,
-            // This only seems to work if the function is not contained in an object.
-            // Otherwise, referencing the function seems to call it.
-            "Color": @ContextLib__LogPage__GetLevelColor,
+            // This is a bug in old versions of miniscript that grey hack hasn't picked up the fix for.
+            // "Color": @ContextLib.LogPage.GetLevelColor,
         },
     },
 }
+ContextLib.LogPage.Metadata.Fields.text.Color = @ContextLib.LogPage.GetLevelColor
 
 ContextLib.Log = function(level, message, arguments=null, context=null)
     if arguments == null then arguments = {}

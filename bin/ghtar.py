@@ -36,7 +36,8 @@ import base64
 import json
 import re
 
-FILE_VERSION = 1
+FILE_VERSION__UNCOMPRESSED = 1
+FILE_VERSION__COMPRESSED = 2
 TEMP_DIR = "~/.tmp"
 VERBOSE = [False]
 
@@ -116,10 +117,10 @@ BLOCK_DELETE = 85
 REPLACED_WITH_HOME = "<[HOME]>"
 
 
-def mk_block_header() -> bytes:
+def mk_block_header(version: int) -> bytes:
     """Create a header block."""
     # version, rest of the header size.
-    return mk_chunk(BLOCK_HEADER, mk_uint16(FILE_VERSION) + mk_uint16(0))
+    return mk_chunk(BLOCK_HEADER, mk_uint16(version) + mk_uint16(0))
 
 
 def mk_block_string(index: int, text: str, needs_home_replacement: bool) -> bytes:
@@ -630,7 +631,7 @@ class Blocks:
         self._other_blocks: List[bytes] = []
 
     def assemble(self) -> Optional[bytes]:
-        """Final assembly of the blocks."""
+        """Assemble the body of the data."""
         # The assembled order must be done to make the extract script
         # as trivial in implementation as possible.  So ordering is done here.
 
@@ -658,8 +659,9 @@ class Blocks:
 
         # Now all the blocks are ready to go.
 
-        # Start with the header.
-        ret = mk_block_header()
+        # Header first
+        ret = mk_block_header(FILE_VERSION__UNCOMPRESSED)
+
         # Then the strings
         for text, idx in self._strings.items():
             ret += mk_block_string(idx, text, False)
@@ -1321,6 +1323,131 @@ def parse_json(data: Any, context_dir: str) -> Optional[bytes]:
     return blocks.assemble()
 
 
+def mk_compress_header(reverse_lookup: List[Tuple[bytes, int]]) -> bytes:
+    """Create the compression lookup header."""
+    # The lookup is bytes -> index, but the header needs to write
+    # index -> bytes.
+    # Additionally, it writes (encoded byte count, number with the byte count)
+    # The final sub-block is a 0 number of bytes with that count, and 0 count.
+    print(f"Reversing ordered (size {len(reverse_lookup)})")
+    ordered = []
+    for search in range(0, len(reverse_lookup)):
+        found = False
+        for key, index in reverse_lookup:
+            if index == search:
+                found = True
+                ordered.append(key)
+                break
+        assert found
+    assert 1 <= len(ordered) <= 4096
+    # Create a list of shared size, in order of index.
+    # There's guaranteed to be at least 1 item.
+    sized_ordered: List[List[int]] = [[0]]
+    prev_len = len(ordered[0])
+    for idx in range(1, len(ordered)):
+        val = ordered[idx]
+        if len(val) != prev_len:
+            prev_len = len(val)
+            sized_ordered.append([])
+        sized_ordered[-1].append(val)
+    
+    header = b''
+    for group in sized_ordered:
+        # There is some weird bug in this code where a 0 is added as
+        # just a zero rather than a byte array containing only a 0.
+        first = group[0]
+        if first == 0:
+            # a 1 byte length.
+            header += mk_uint8(1) + mk_uint8(len(group))
+        else:
+            header += mk_uint8(len(group[0])) + mk_uint8(len(group))
+        for item in group:
+            # stick the whole item at the end of the header.
+            print(f"Adding {repr(item)}")
+            if item == 0:
+                header += b'\0'
+            else:
+                header += item
+    # Put the terminator.
+    header += mk_uint8(0) + mk_uint8(0)
+    return header
+
+
+def compress(body: bytes) -> bytes:
+    """Final assembly of the blocks."""
+
+    # Compression is just a simple LZW for this version, because
+    # decompression is just a lookup table.
+    ret = mk_block_header(FILE_VERSION__COMPRESSED)
+
+    # Create a reverse lookup.
+    # Reserve only the characters in the body.
+    top = 0
+    seen: Set[bytes] = set()
+    lookup: List[Tuple[bytes, int]] = []
+    for val in body:
+        bar = bytes([val])
+        if bar not in seen:
+            lookup.append((bar, top))
+            seen.add(bar)
+            top = top + 1
+    b_len = len(body)
+    max_len = 1
+    coded = []
+    pos = 0
+    while pos < b_len:
+        tail = pos + max_len
+        while tail > pos:
+            match = None
+            searching = body[pos:tail]
+            for find, key in lookup:
+                if find == searching:
+                    match = key
+                    break
+            if match is not None:
+                # print("Match for " + repr(searching))
+                coded.append(key)
+                if top < 4096 and tail < b_len:
+                    lookup.append((body[pos:tail+1], top))
+                    max_len = (tail - pos) + 1
+                    assert max_len > 1
+                    top = top + 1
+                pos = tail
+                break
+
+            tail -= 1
+            # print("No match for " + repr(searching))
+            assert tail > pos
+
+    # Encode the data.
+    # The encoded data is 12 bits each, or 8 + 4.  So we'll put
+    # 8 + 4 then 4 + 8 down.
+
+    # Create the encoding block
+    ret += mk_compress_header(lookup)
+
+    compressed = b''
+    on_odd = False
+    remainder = 0
+    count = 0
+    for item in coded:
+        count = count + 1
+        if on_odd:
+            compressed += mk_uint8(remainder | ((item >> 4) & 0x0f))
+            compressed += mk_uint8(item & 0xff)
+            on_odd = False
+        else:
+            compressed += mk_uint8((item >> 4) & 0xff)
+            remainder = (item & 0xf) << 4
+    if on_odd:
+        compressed += mk_uint8(remainder)
+    if count > 65535:
+        print("Unsupported compressed size; too big")
+        sys.exit(1)
+    ret += mk_uint16(count) + compressed
+    return ret
+    
+
 def convert(data: bytes, wide: bool) -> str:
     """Convert the data into the encoded form."""
     res = base64.a85encode(data).decode("ascii")
@@ -1386,6 +1513,13 @@ def main(args: Sequence[str]) -> int:
         help="Output file to contain the generated file.  Defaults to stdout.",
     )
     parser.add_argument(
+        "-z",
+        "--compress",
+        action="store_true",
+        dest="compress",
+        help="Use LZW compression on the output.",
+    )
+    parser.add_argument(
         "filename",
         help="Source bundle file.",
     )
@@ -1422,6 +1556,8 @@ def main(args: Sequence[str]) -> int:
     if blocks is None:
         # already reported the error
         return 1
+    if parsed.compress:
+        blocks = compress(blocks)
     out = convert(blocks, not parsed.multiline)
     if outfile is None:
         print(out)

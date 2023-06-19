@@ -3,7 +3,7 @@
 if not globals.hasIndex("FileLib") then globals.FileLib = {}
 FileLib = globals.FileLib
 
-    
+
 FileLib.Paths = {
     "Home": home_dir,
     "Cwd": current_path, // see bug: https://greytracker.org/bugzilla/show_bug.cgi?id=630

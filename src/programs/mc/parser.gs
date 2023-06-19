@@ -23,6 +23,7 @@ ParsedCommand.Command.New = function(name, args, errors)
     ret.Name = name
     ret.Args = args
     ret.Errors = errors
+    ret.PromptOnExit = false
 
     // This hasn't been implemented yet.  It's goal is to
     // support ";", "&&", and "||" style tie-ins.
@@ -51,6 +52,7 @@ ParsedCommand.CharClass = {
     "BC": "]",
     "CO": "{",
     "CC": "}",
+    "EX": "!",
     "Escape": {
         "n": char(10),
         "r": char(13),
@@ -73,17 +75,24 @@ ParsedCommand.Parse = function(text, env, context, defaultPage)
     ret = []
     pos = 0
     stateStack = [{ "start": 0, "state": 0, "cmd": null, "args": [], "problems": [] }]
+    promptOnExit = false
 
     endCmd = function()
+        genCmd = null
         if stateStack[-1].cmd != null then
-            outer.ret.push(ParsedCommand.Command.New(stateStack[-1].cmd, stateStack[-1].args, stateStack[-1].problems))
+            genCmd = ParsedCommand.Command.New(stateStack[-1].cmd, stateStack[-1].args, stateStack[-1].problems)
             // print("<color #ff00ff>DEBUG Push command " + stateStack[-1].cmd + "</color>")
         else if stateStack[-1].args.len > 0 or stateStack[-1].problems.len > 0 then
             // print("<color #ff00ff>DEBUG Error state</color>")
-            outer.ret.push(ParsedCommand.Command.New(null, null, stateStack[-1].problems + ["invalid parse state"]))
+            genCmd = ParsedCommand.Command.New(null, null, stateStack[-1].problems + ["invalid parse state"])
         else
             // print("<color #ff00ff>DEBUG Skip empty command</color>")
         end if
+        if genCmd != null then
+            genCmd.PromptOnExit = promptOnExit
+            outer.ret.push(genCmd)
+        end if
+        promptOnExit = false
         stateStack[-1].cmd = ""
         stateStack[-1].args = []
         stateStack[-1].problems = []
@@ -101,7 +110,12 @@ ParsedCommand.Parse = function(text, env, context, defaultPage)
         if stateStack[-1].state == 0 then
             // 0 == look for start of a command
             // Anything other than whitespace means starting up a command name.
-            if c == ParsedCommand.CharClass.DL then
+            // ... kind of ...
+            if c == ParsedCommand.CharClass.EX then
+                // "!".  Toggle the prompt on exit state.
+                promptOnExit = not promptOnExit
+
+            else if c == ParsedCommand.CharClass.DL then
                 // "$".  Env.
                 stateStack[-1].state = 1
                 stateStack.push({"state": 1000, "start": pos})

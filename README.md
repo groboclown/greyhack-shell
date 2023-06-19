@@ -4,6 +4,10 @@ Grey Hack Scripts and tools for working with the Grey Hack game.
 
 # Provided Tools
 
+## MC Shell
+
+Read [the docs](mc.md).
+
 ## Import Files into the Game
 
 The Grey Hack game provides an in-game editor, but it has severe limitations.  Additionally, the game makes it very difficult to develop text files on your local computer outside the game, then import them into the game.

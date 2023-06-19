@@ -9,7 +9,7 @@ CmdletManager = {}
 CmdletManager.New = function()
     ret = new CmdletManager
     ret.Aliases = {
-        "+": "pagecontroller",
+        "pg": "pagecontroller",
     }
     ret.CmdletPaths = ["~/bin/cmdlets"]
     ret.BinPaths = ["~/bin"]
@@ -35,11 +35,8 @@ CmdletManager.Run = function(cmd, context, session)
     print("Running [" + invoke.file.path + "] [" + invoke.args + "]")
     res = session.shell.launch(invoke.file.path, invoke.args)
     ContextLib.Log("info", "Running [{path}] returned [{val}]", {"path": invoke.file.path, "val": res})
-    // FIXME for now...
-    if res != 0 then
-        print("Exited with " + res)
-        exit
-    end if
+    context.Errors.push("[" + cmd.Name + "] exited with [" + res + "]")
+    if cmd.PromptOnExit then user_input("(press enter to continue)")
     return res
 end function
 

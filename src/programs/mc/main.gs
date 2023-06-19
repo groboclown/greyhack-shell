@@ -36,11 +36,12 @@ cmdlets.LoadConfig(config.Section("cmdlets"))
 context.ActivePage = ContextLib.LogPage.Name
 
 // Welcome Screen
-ContextLib.Log("info", "MC Shell v0.1", {})
+ContextLib.Log("warning", "MC Shell v0.1", {})
+ContextLib.Log("info", "https://github.com/groboclown/greyscript/", {})
+ContextLib.Log("info", "Type 'help' and enter for help.", {})
 
 while true
     session = ContextLib.GetSession(context)
-    print("Using active page " + context.ActivePage)
     screen = ui.Draw(context, session)
     clear_screen()
     for line in screen[0]

@@ -225,6 +225,31 @@ FileLib.BinaryReader.NextUInt8 = function()
     return ret
 end function
 
+// FileLib.BinaryReader.NextUInt12() reads the next uint12 value, or null
+FileLib.BinaryReader.NextUInt12 = function()
+    if not self.fill_buffer(12) then return null
+    while self.remaining_bits < 12
+        // Need to add more bits.
+        // Not performing buffer checks, because fill_buffer should have
+        // given us at least 12 more bits to work with in the buffer +
+        // remaining bits.
+        self.remaining_bits = self.remaining_bits + self.buffer_bit_size
+        self.partial_data = ((self.partial_data * FileLib._pow2[self.buffer_bit_size]) + self.buffer[0])
+        self.buffer.remove(0)
+    end while
+    // Strip off the top 12 bits
+    ret = floor(self.partial_data / FileLib._pow2[self.remaining_bits - 12]) % 4096
+    if self.remaining_bits > 12 then
+        self.remaining_bits = self.remaining_bits - 12
+        self.partial_data = self.partial_data % FileLib._pow2[self.remaining_bits]
+    else
+        // must be == 12...
+        self.remaining_bits = 0
+        self.partial_data = 0
+    end if
+    return ret
+end function
+
 // FileLib.BinaryReader.NextUInt16BE() reads the next uint16 value, or null
 //
 // Uses "big endian" formatting.
@@ -252,6 +277,22 @@ FileLib.BinaryReader.NextUInt16BE = function()
     return ret
 end function
 
+FileLib.BinReader = {}
+FileLib.BinReader.New = function(data)
+    ret = FileLib.BinaryReader.New("")
+    if ret == null then return null
+	ret.buffer_bit_size = 8
+    ret.content = data
+    ret.content_pos = 0
+    ret.load_buffer = @FileLib.BinReader.decoder
+    return ret
+end function
+FileLib.BinReader.decoder = function()
+    if self.content_pos >= self.content.len then return 0
+    self.buffer.push(self.content[self.content_pos])
+    self.content_pos = self.content_pos + 1
+    return 1
+end function
 
 FileLib.A85Reader = {}
 FileLib.A85Reader._zero = "!".code
@@ -382,25 +423,12 @@ end function
 // The file format is essentially a compressed tar file + build instructions.
 
 file_version = 1
-MAX_SUPPORTED_FILE_VERSION = 1
+MAX_SUPPORTED_FILE_VERSION = 2
 test_dir = TEMP_DIR + "/tests"
 REPLACED_WITH_HOME = "<[HOME]>"
 
-// File header
-blockHeaderFunc = function(tar)
-    globals.file_version = tar.NextUInt16BE
-    if globals.file_version > MAX_SUPPORTED_FILE_VERSION then
-        exit("Unsupported file format: " + globals.file_version)
-    end if
-    // The rest of the header is the following number of bytes.
-    // Added for future support.
-    header_size = tar.NextUInt16BE
-    DEBUG("Header version " + file_version + "; skipping " + header_size + " bytes")
-    tar.Skip(header_size)
-end function
-
 // ASCII encoded string.
-blockAsciiFunc = function(tar)
+blockAsciiFunc = function(tar, size)
     str_idx = tar.NextUInt16BE
     text = tar.Ascii
     tar.strings[str_idx] = text
@@ -408,7 +436,7 @@ blockAsciiFunc = function(tar)
 end function
 
 // UTF-16 encoded string.
-blockUtf16Func = function(tar)
+blockUtf16Func = function(tar, size)
     str_idx = tar.NextUInt16BE
     text = tar.Utf16
     tar.strings[str_idx] = text
@@ -416,7 +444,7 @@ blockUtf16Func = function(tar)
 end function
 
 // ASCII encoded string + replace with home
-blockAsciiReplaceHomeFunc = function(tar)
+blockAsciiReplaceHomeFunc = function(tar, size)
     str_idx = tar.NextUInt16BE
     text = tar.Ascii().replace(REPLACED_WITH_HOME, home_dir)
     tar.strings[str_idx] = text
@@ -424,7 +452,7 @@ blockAsciiReplaceHomeFunc = function(tar)
 end function
 
 // UTF-16 encoded string + replace with home
-blockUtf16ReplaceHomeFunc = function(tar)
+blockUtf16ReplaceHomeFunc = function(tar, size)
     str_idx = tar.NextUInt16BE
     text = tar.Utf16.replace(REPLACED_WITH_HOME, home_dir)
     tar.strings[str_idx] = text
@@ -434,7 +462,7 @@ end function
 
 // Relative-to-home path.
 // Paths are always ascii-encoded.
-blockRelHomeFunc = function(tar)
+blockRelHomeFunc = function(tar, size)
     str_idx = tar.NextUInt16BE
     text = tar.Ascii
     if text.len > 0 then
@@ -447,7 +475,7 @@ blockRelHomeFunc = function(tar)
 end function
 
 // Folder
-blockFolderFunc = function(tar)
+blockFolderFunc = function(tar, size)
     parent = tar.String
     name = tar.String
     DEBUG("Creating [" + name + "] in folder [" + parent + "]")
@@ -462,7 +490,7 @@ blockFolderFunc = function(tar)
 end function
 
 // File
-blockFileFunc = function(tar)
+blockFileFunc = function(tar, size)
     base_dir = tar.String
     name = tar.String
     contents = tar.String
@@ -479,7 +507,7 @@ blockFileFunc = function(tar)
 end function
 
 // chmod
-blockChmodFunc = function(tar)
+blockChmodFunc = function(tar, size)
     fqn = tar.String
     perms = tar.String
     recurse = tar.NextUInt8
@@ -491,7 +519,7 @@ blockChmodFunc = function(tar)
 end function
 
 // chown user
-blockChownFunc = function(tar)
+blockChownFunc = function(tar, size)
     fqn = tar.String
     username = tar.String
     recurse = tar.NextUInt8
@@ -503,7 +531,7 @@ blockChownFunc = function(tar)
 end function
 
 // chown group
-blockChownGroupFunc = function(tar)
+blockChownGroupFunc = function(tar, size)
     fqn = tar.String
     group = tar.String
     recurse = tar.NextUInt8
@@ -515,7 +543,7 @@ blockChownGroupFunc = function(tar)
 end function
 
 // New User
-blockNewUserFunc = function(tar)
+blockNewUserFunc = function(tar, size)
     username = tar.String
     password = tar.String
 
@@ -525,7 +553,7 @@ blockNewUserFunc = function(tar)
 end function
 
 // Assign group to user
-blockAssignGroupFunc = function(tar)
+blockAssignGroupFunc = function(tar, size)
     username = tar.String
     group = tar.String
 
@@ -539,7 +567,7 @@ end function
 // move into the expected location.  The expected location directory must
 // exist first.  The file is copied to the temporary directory so that
 // we know the name of the compiled-to file.
-blockBuildFunc = function(tar)
+blockBuildFunc = function(tar, size)
     source_fqn = tar.String
     DEBUG("build source: " + source_fqn + ";")
     target_path_fqn = tar.String
@@ -562,7 +590,7 @@ end function
 // test
 // Test process: put the source in a temporary directory, compile it,
 // then run it.
-blockTestFunc = function(tar)
+blockTestFunc = function(tar, size)
     test_index = tar.NextUInt16BE
     name = tar.String
     contents = tar.String
@@ -589,7 +617,7 @@ end function
 
 // launch
 // Launch a process.
-blockLaunchFunc = function(tar)
+blockLaunchFunc = function(tar, size)
     arg_count = tar.NextUInt8
     cmd = tar.String
     args = []
@@ -601,7 +629,7 @@ blockLaunchFunc = function(tar)
 end function
 
 // copy
-blockCopyFunc = function(tar)
+blockCopyFunc = function(tar, size)
     source_fqn = tar.String
     DEBUG("copy source: " + source_fqn + ";")
     target_path_fqn = tar.String
@@ -617,7 +645,7 @@ blockCopyFunc = function(tar)
 end function
 
 // move
-blockMoveFunc = function(tar)
+blockMoveFunc = function(tar, size)
     source_fqn = tar.String
     DEBUG("move source: " + source_fqn + ";")
     target_path_fqn = tar.String
@@ -633,7 +661,7 @@ blockMoveFunc = function(tar)
 end function
 
 // delete
-blockDeleteFunc = function(tar)
+blockDeleteFunc = function(tar, size)
     path_fqn = tar.String
     DEBUG("delete file: " + path_fqn + ";")
 
@@ -648,7 +676,7 @@ end function
 
 BLOCK_HANDLERS = {
     // BLOCK_HEADER = 0
-    0: @blockHeaderFunc,
+    // 0: @blockHeaderFunc,
 
     // BLOCK_ASCII = 1
     1: @blockAsciiFunc,
@@ -730,17 +758,64 @@ INFO("Uncompressing " + source_file.path)
 // Need to setup custom attributes...
 reader.strings = {}
 
-while reader.HasMore
+handleDataBlocks = function(tar)
     // Get the kind of block
-    block_type = reader.NextUInt8
-    block_size = reader.NextUInt16BE
+    block_type = tar.NextUInt8
+    block_size = tar.NextUInt16BE
     if block_type == null or block_size == null then break
     if BLOCK_HANDLERS.hasIndex(block_type) then
-        BLOCK_HANDLERS[block_type](reader)
+        BLOCK_HANDLERS[block_type](tar, block_size)
     else
         INFO("Unknown block type " + block_type)
         // Do not fail; this could mean a file format that isn't supported fully.
         // Read in this block's bytes.
-        reader.Skip(block_size)
+        tar.Skip(block_size)
     end if
-end while
+end function
+
+// Read the header block first.  If it's compressed, then it'll need to be re-loaded.
+header_type = reader.NextUInt8
+header_size = reader.NextUInt16BE
+if header_type != 0 then exit("Invalid file format")
+file_version = reader.NextUInt16BE
+if file_version == 2 then
+    // Need to uncompress it, and re-construct the reader.
+    tar.Skip(header_size)
+
+    // Read the compression table
+    _blockDecodeTable = []
+    // Encoded as (byte count, number with the byte count) (index 0) ...
+    // The last one is has counts 0 and 0.
+    while true
+        item_size = tar.NextUInt8
+        item_count = tar.NextUInt8
+        if item_size == 0 and item_count == 0 then break
+        while item_count > 0
+            b = []
+            for i in range(1, item_size)
+                b = b + [tar.NextUInt8]
+            end for
+            _blockDecodeTable.push(b)
+            item_count = item_count - 1
+        end while
+    end while
+
+    // decode the remaining values.
+    uncompressed = []
+    while true
+        index = tar.NextUInt12
+        if index == null then break
+        uncompressed = uncompressed + _blockDecodeTable[index]
+    end while
+    reader = FileLib.BinReader.New(uncompressed)
+
+    // Now read the first block's first two bytes again.
+    header_type = reader.NextUInt8
+    header_size = reader.NextUInt16BE
+end if
+
+tar.Skip(header_size)
+if file_version > MAX_SUPPORTED_FILE_VERSION then
+    exit("Unsupported file format: " + file_version)
+end if
+handleDataBlocks(reader)
