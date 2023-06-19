@@ -35,6 +35,7 @@ import argparse
 import base64
 import json
 import re
+from collections import Counter
 
 FILE_VERSION__UNCOMPRESSED = 1
 FILE_VERSION__COMPRESSED = 2
@@ -86,7 +87,7 @@ def mk_chunk(chunk_id: int, chunk_data: bytes) -> bytes:
     # r = f"[chunk {chunk_id}]"
     # for b in ret:
     #     r += f" {b:02x}"
-    # print(r)
+    # debug(r)
 
     return ret
 
@@ -734,7 +735,7 @@ class Blocks:
 
     def add_folder(self, folder_name: str) -> None:
         """Create a folder block."""
-        # print(f"ADD FOLDER [{folder_name}]")
+        # debug(f"ADD FOLDER [{folder_name}]")
         if folder_name == "/" or folder_name == "~":
             # The root was reached during recursive adds.
             return
@@ -1322,129 +1323,159 @@ def parse_json(data: Any, context_dir: str) -> Optional[bytes]:
 
     return blocks.assemble()
 
+# =====================================================================
+# Compression
 
-def mk_compress_header(reverse_lookup: List[Tuple[bytes, int]]) -> bytes:
+def compress_dictionary_creation(body: bytes) -> Tuple[int, Dict[bytes, int]]:
+    """Constructs a reverse lookup dictionary - the lookup string
+    to the lookup index.
+    
+    The algorithm is restricted by the dictionary header to searching for
+    at most 16 byte strings.  However, that makes the output really big.
+
+    Returns (max string length, dictionary)
+    """
+    # First, construct a histogram of the possiblities.
+    histo = Counter()
+    body_len = len(body)
+    for count in range(2, 8):
+        for pos in range(0, body_len - count + 1):
+            histo[bytes(body[pos:pos+count])] += 1
+    
+    # Find all the distinct, single values in the stream.
+    # These are required to be in the dictionary, but will
+    # be
+    single_values = Counter()
+    for val in body:
+        single_values[bytes([val])] += 1
+    # we'll use at most the top 4 byte groups minus the
+    # individual byte count and the last value marker (1)
+    # = 255 * 4 - len(single_values) - 1 = 1019 - len(single_values) values
+    common = histo.most_common(1019 - len(single_values)) + single_values.most_common()
+    common.sort(key=lambda a: a[1])
+    assert len(common) <= 1019
+
+    ret: Dict[bytes, Tuple[bytes, int]] = {}
+    index = 0
+    max_len = 0
+    for sub, _ in common:
+        max_len = max(max_len, len(sub))
+        ret[sub] = index
+        index += 1
+    
+    return max_len, ret
+
+
+def mk_compress_header(reverse_lookup: Dict[bytes, int]) -> bytes:
     """Create the compression lookup header."""
     # The lookup is bytes -> index, but the header needs to write
     # index -> bytes.
     # Additionally, it writes (encoded byte count, number with the byte count)
     # The final sub-block is a 0 number of bytes with that count, and 0 count.
-    print(f"Reversing ordered (size {len(reverse_lookup)})")
-    ordered = []
-    for search in range(0, len(reverse_lookup)):
-        found = False
-        for key, index in reverse_lookup:
-            if index == search:
-                found = True
-                ordered.append(key)
-                break
-        assert found
-    assert 1 <= len(ordered) <= 4096
+    lookup: Dict[int, bytes] = {}
+    for key, index in reverse_lookup.items():
+        assert index not in lookup
+        lookup[index] = key
+
     # Create a list of shared size, in order of index.
-    # There's guaranteed to be at least 1 item.
-    sized_ordered: List[List[int]] = [[0]]
-    prev_len = len(ordered[0])
-    for idx in range(1, len(ordered)):
-        val = ordered[idx]
+    # Seed the lists with index 0.
+    assert 0 in lookup
+    sized_ordered: List[List[int]] = [[lookup[0]]]
+    prev_len = len(lookup[0])
+    for idx in range(1, len(lookup)):
+        val = lookup[idx]
         if len(val) != prev_len:
             prev_len = len(val)
             sized_ordered.append([])
+        elif len(sized_ordered[-1]) >= 15:
+            # Need to create another group, because each group is
+            # limited to 15 members.
+            sized_ordered.append([])
         sized_ordered[-1].append(val)
-    
+
     header = b''
     for group in sized_ordered:
-        # There is some weird bug in this code where a 0 is added as
-        # just a zero rather than a byte array containing only a 0.
-        first = group[0]
-        if first == 0:
-            # a 1 byte length.
-            header += mk_uint8(1) + mk_uint8(len(group))
-        else:
-            header += mk_uint8(len(group[0])) + mk_uint8(len(group))
+        # Add the byte with the (item length - 1 | item count)
+        item_len = len(group[0])
+        assert 0 < item_len <= 16
+        item_count = len(group)
+        assert 0 < item_count < 16
+        group_header = ((item_len - 1) << 4) | item_count
+        header += mk_uint8(group_header)
+
         for item in group:
-            # stick the whole item at the end of the header.
-            print(f"Adding {repr(item)}")
-            if item == 0:
-                header += b'\0'
-            else:
-                header += item
+            header += item
+
     # Put the terminator.
-    header += mk_uint8(0) + mk_uint8(0)
+    header += mk_uint8(0)
+    debug(f"Compression header size: {len(header)} bytes")
     return header
 
 
-def compress(body: bytes) -> bytes:
-    """Final assembly of the blocks."""
 
-    # Compression is just a simple LZW for this version, because
-    # decompression is just a lookup table.
+def mk_encoded_body(body: bytes, reverse_lookup: Dict[bytes, int], max_item_len: int) -> bytes:
+    """Convert the body into index lookups in the lookup table."""
+    pos = 0
+    body_len = len(body)
+    ret = b''
+    while pos < body_len:
+        # Find the longest string that is in the dictionary starting with pos.
+        try:
+            tail = min(pos + max_item_len + 1, body_len)
+            while tail > pos:
+                sub = body[pos:tail]
+                index = reverse_lookup.get(sub)
+                if index is not None:
+                    # Do the variable length encoding
+                    debug(f"-- Adding index {index}")
+                    while index >= 255:
+                        ret += b'\0'
+                        index -= 255
+                    assert 0 <= index < 255, f"bad calculation: {index}"
+                    ret += bytes([index + 1])
+                    pos = tail
+                    raise StopIteration
+                tail -= 1
+        except StopIteration:
+            pass
+        else:
+            raise RuntimeError(f"Did not stop; incorrect substring table construction (@{pos}/{max_item_len}, c = {body[pos:pos+1]}, {reverse_lookup})")
+    # Add the + 1 index to mark the end of the data.
+    index = len(reverse_lookup)
+    while index >= 255:
+        ret += b'\0'
+        index -= 255
+    ret += bytes([index + 1])
+    debug(f"Compressed body size: {len(ret)} bytes")
+    return ret
+
+
+def compress(body: bytes) -> bytes:
+    """Final assembly of the blocks.
+    
+    This is a custom compression tool based on nybble (4-bit)
+    blocks.  It contains a dictionary header split into blocks,
+    each block starting with (item length - 1, item count) packed into
+    one byte.  With item count == 0, that's the marker for the end
+    of the dictionary.  After that, each element in the dictionary
+    is an index, and they are encoded into uint16 lookup indexes.
+
+    The big bad part of this is the dictionary generation
+    to reduce the total size of the data.  The dictionary header limits
+    this to searching
+    """
+
     ret = mk_block_header(FILE_VERSION__COMPRESSED)
 
-    # Create a reverse lookup.
-    # Reserve only the characters in the body.
-    top = 0
-    seen: Set[bytes] = set()
-    lookup: List[Tuple[bytes, int]] = []
-    for val in body:
-        bar = bytes([val])
-        if bar not in seen:
-            lookup.append((bar, top))
-            seen.add(bar)
-            top = top + 1
-    b_len = len(body)
-    max_len = 1
-    coded = []
-    pos = 0
-    while pos < b_len:
-        tail = pos + max_len
-        while tail > pos:
-            match = None
-            searching = body[pos:tail]
-            for find, key in lookup:
-                if find == searching:
-                    match = key
-                    break
-            if match is not None:
-                # print("Match for " + repr(searching))
-                coded.append(key)
-                if top < 4096 and tail < b_len:
-                    lookup.append((body[pos:tail+1], top))
-                    max_len = (tail - pos) + 1
-                    assert max_len > 1
-                    top = top + 1
-                pos = tail
-                break
-
-            tail -= 1
-            # print("No match for " + repr(searching))
-            assert tail > pos
-
-    # Encode the data.
-    # The encoded data is 12 bits each, or 8 + 4.  So we'll put
-    # 8 + 4 then 4 + 8 down.
+    # Create a reverse lookup without bytes.
+    max_len, reverse_lookup = compress_dictionary_creation(body)
 
     # Create the encoding block
-    ret += mk_compress_header(lookup)
+    ret += mk_compress_header(reverse_lookup)
 
-    compressed = b''
-    on_odd = False
-    remainder = 0
-    count = 0
-    for item in coded:
-        count = count + 1
-        if on_odd:
-            compressed += mk_uint8(remainder | ((item >> 4) & 0x0f))
-            compressed += mk_uint8(item & 0xff)
-            on_odd = False
-        else:
-            compressed += mk_uint8((item >> 4) & 0xff)
-            remainder = (item & 0xf) << 4
-    if on_odd:
-        compressed += mk_uint8(remainder)
-    if count > 65535:
-        print("Unsupported compressed size; too big")
-        sys.exit(1)
-    ret += mk_uint16(count) + compressed
+    # Create the encoded body.
+    ret +=  mk_encoded_body(body, reverse_lookup, max_len)
+
     return ret
     
 
@@ -1557,7 +1588,9 @@ def main(args: Sequence[str]) -> int:
         # already reported the error
         return 1
     if parsed.compress:
+        debug(f"Source size: {len(blocks)}")
         blocks = compress(blocks)
+        debug(f"Compressed size: {len(blocks)}")
     out = convert(blocks, not parsed.multiline)
     if outfile is None:
         print(out)
