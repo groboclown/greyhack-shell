@@ -9,7 +9,7 @@
     },
     {
         "type": "file",
-        "file": "~/parent/some-file.txt",
+        "path": "~/parent/some-file.txt",
         "contents": "the contents",
 
         "$comment": [

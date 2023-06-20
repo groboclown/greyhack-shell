@@ -1331,14 +1331,16 @@ def compress_dictionary_creation(body: bytes) -> Tuple[int, Dict[bytes, int]]:
     to the lookup index.
     
     The algorithm is restricted by the dictionary header to searching for
-    at most 16 byte strings.  However, that makes the output really big.
+    at most 16 byte strings.  The dictionary size is limited to 12 bits
+    (0-4095).  The very last dictionary entry is reserved as a end-of-stream
+    marker.
 
     Returns (max string length, dictionary)
     """
     # First, construct a histogram of the possiblities.
     histo = Counter()
     body_len = len(body)
-    for count in range(2, 8):
+    for count in range(2, 16):
         for pos in range(0, body_len - count + 1):
             histo[bytes(body[pos:pos+count])] += 1
     
@@ -1348,12 +1350,12 @@ def compress_dictionary_creation(body: bytes) -> Tuple[int, Dict[bytes, int]]:
     single_values = Counter()
     for val in body:
         single_values[bytes([val])] += 1
-    # we'll use at most the top 4 byte groups minus the
+    # we'll use at most the top 12-bits minus the
     # individual byte count and the last value marker (1)
-    # = 255 * 4 - len(single_values) - 1 = 1019 - len(single_values) values
-    common = histo.most_common(1019 - len(single_values)) + single_values.most_common()
+    # = 4096 - len(single_values) - 1 = 4095 - len(single_values) values
+    common = histo.most_common(4095 - len(single_values)) + single_values.most_common()
     common.sort(key=lambda a: a[1])
-    assert len(common) <= 1019
+    assert len(common) <= 4095
 
     ret: Dict[bytes, Tuple[bytes, int]] = {}
     index = 0
@@ -1364,6 +1366,61 @@ def compress_dictionary_creation(body: bytes) -> Tuple[int, Dict[bytes, int]]:
         index += 1
     
     return max_len, ret
+
+
+def compress_encoded_body(body: bytes, max_item_len: int, reverse_lookup: Dict[bytes, int]) -> List[int]:
+    """Encode the body into lookup table indexes."""
+    pos = 0
+    body_len = len(body)
+    ret: List[int] = []
+    while pos < body_len:
+        # Find the longest string that is in the dictionary starting with pos.
+        try:
+            tail = min(pos + max_item_len + 1, body_len)
+            while tail > pos:
+                sub = body[pos:tail]
+                index = reverse_lookup.get(sub)
+                if index is not None:
+                    ret.append(index)
+                    pos = tail
+                    raise StopIteration
+                tail -= 1
+        except StopIteration:
+            pass
+        else:
+            raise RuntimeError(f"Did not stop; incorrect substring table construction (@{pos}/{max_item_len}, c = {body[pos:pos+1]}, {reverse_lookup})")
+    return ret
+
+
+def compress_compacted_body_lookup(encoded: List[int], reverse_lookup: Dict[bytes, int]) -> Tuple[List[int], Dict[bytes, int]]:
+    """A final pass over the body and lookup to compact it down to just the entries used."""
+    lookup: Dict[int, bytes] = {}
+    for sub, orig_idx in reverse_lookup.items():
+        lookup[orig_idx] = sub
+
+    # Because a fixed length encoding value is used, we don't care about ordering the
+    # dictionary in terms of frequency.  However, due to the dictionary storage, it's smaller
+    # to store it with same-sized entries grouped together.  So sort entries by size.
+    
+    histo: Set[int] = set()
+    for idx in encoded:
+        histo.add(idx)
+    used_indicies = list(histo)
+    used_indicies.sort(key=lambda v: len(lookup[v]))
+
+    old_to_new: Dict[int, int] = {}
+    translated: Dict[bytes, int] = {}
+    count = 0
+    for orig_idx in used_indicies:
+        old_to_new[orig_idx] = count
+        translated[lookup[orig_idx]] = count
+        count += 1
+    
+    recoded: List[int] = []
+    for orig_idx in encoded:
+        recoded.append(old_to_new[orig_idx])
+
+    return recoded, translated
 
 
 def mk_compress_header(reverse_lookup: Dict[bytes, int]) -> bytes:
@@ -1394,6 +1451,7 @@ def mk_compress_header(reverse_lookup: Dict[bytes, int]) -> bytes:
         sized_ordered[-1].append(val)
 
     header = b''
+    debug_idx = 0
     for group in sized_ordered:
         # Add the byte with the (item length - 1 | item count)
         item_len = len(group[0])
@@ -1404,6 +1462,9 @@ def mk_compress_header(reverse_lookup: Dict[bytes, int]) -> bytes:
         header += mk_uint8(group_header)
 
         for item in group:
+            # Directly add the whole item to the header.
+            debug(f"d[{debug_idx}] = {item}")
+            debug_idx += 1
             header += item
 
     # Put the terminator.
@@ -1412,40 +1473,30 @@ def mk_compress_header(reverse_lookup: Dict[bytes, int]) -> bytes:
     return header
 
 
-
-def mk_encoded_body(body: bytes, reverse_lookup: Dict[bytes, int], max_item_len: int) -> bytes:
+def mk_encoded_body(encoded: List[int], table_size: int) -> bytes:
     """Convert the body into index lookups in the lookup table."""
-    pos = 0
-    body_len = len(body)
     ret = b''
-    while pos < body_len:
-        # Find the longest string that is in the dictionary starting with pos.
-        try:
-            tail = min(pos + max_item_len + 1, body_len)
-            while tail > pos:
-                sub = body[pos:tail]
-                index = reverse_lookup.get(sub)
-                if index is not None:
-                    # Do the variable length encoding
-                    debug(f"-- Adding index {index}")
-                    while index >= 255:
-                        ret += b'\0'
-                        index -= 255
-                    assert 0 <= index < 255, f"bad calculation: {index}"
-                    ret += bytes([index + 1])
-                    pos = tail
-                    raise StopIteration
-                tail -= 1
-        except StopIteration:
-            pass
+    remainder = 0
+    is_odd = False
+    for idx in encoded:
+        # Do the variable length encoding
+        debug(f"[] = {idx}")
+        if is_odd:
+            ret += bytes([remainder | ((idx >> 8) & 0xf)])
+            ret += bytes([idx & 0xff])
         else:
-            raise RuntimeError(f"Did not stop; incorrect substring table construction (@{pos}/{max_item_len}, c = {body[pos:pos+1]}, {reverse_lookup})")
-    # Add the + 1 index to mark the end of the data.
-    index = len(reverse_lookup)
-    while index >= 255:
-        ret += b'\0'
-        index -= 255
-    ret += bytes([index + 1])
+            ret += bytes([(idx >> 4) & 0xff])
+            remainder = ((idx << 4) & 0xf0)
+        is_odd = not is_odd
+    # Add the table size index to mark the end of the data.
+    if is_odd:
+        ret += bytes([remainder | ((table_size >> 8) & 0xf)])
+        ret += bytes([table_size & 0xff])
+    else:
+        ret += bytes([(table_size >> 4) & 0xff])
+        # Directly add the value to the buffer, not to the remainder.
+        ret += bytes([(table_size << 4) & 0xf0])
+
     debug(f"Compressed body size: {len(ret)} bytes")
     return ret
 
@@ -1458,23 +1509,22 @@ def compress(body: bytes) -> bytes:
     each block starting with (item length - 1, item count) packed into
     one byte.  With item count == 0, that's the marker for the end
     of the dictionary.  After that, each element in the dictionary
-    is an index, and they are encoded into uint16 lookup indexes.
+    is an index, and they are encoded into uint12 lookup indexes (0-4095).
 
     The big bad part of this is the dictionary generation
     to reduce the total size of the data.  The dictionary header limits
     this to searching
     """
 
-    ret = mk_block_header(FILE_VERSION__COMPRESSED)
-
-    # Create a reverse lookup without bytes.
+    # Create a reverse lookup without bytes, and the encoded body.
     max_len, reverse_lookup = compress_dictionary_creation(body)
+    encoded = compress_encoded_body(body, max_len, reverse_lookup)
+    encoded, reverse_lookup = compress_compacted_body_lookup(encoded, reverse_lookup)
 
     # Create the encoding block
+    ret = mk_block_header(FILE_VERSION__COMPRESSED)
     ret += mk_compress_header(reverse_lookup)
-
-    # Create the encoded body.
-    ret +=  mk_encoded_body(body, reverse_lookup, max_len)
+    ret += mk_encoded_body(encoded, len(reverse_lookup))
 
     return ret
     
@@ -1589,6 +1639,7 @@ def main(args: Sequence[str]) -> int:
         return 1
     if parsed.compress:
         debug(f"Source size: {len(blocks)}")
+        debug(f" = {blocks}")
         blocks = compress(blocks)
         debug(f"Compressed size: {len(blocks)}")
     out = convert(blocks, not parsed.multiline)

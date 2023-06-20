@@ -1,5 +1,5 @@
 // Grey Hack script to unpack an exported file and compile it in the game.
-// Version 2.0.1
+// Version 2.1.0
 
 if params.len > 0 and (params[0] == "-h" or params[0] == "--help") then
     exit("Usage: make (packed source file)")
@@ -178,103 +178,57 @@ FileLib._pow2 = [
     4294967296, // << 32
 ]
 
-// FileLib.BinaryReader.NextBit() reads the next 0 or 1 (bit) value, or null
-FileLib.BinaryReader.NextBit = function()
-    if not self.fill_buffer(1) then return null
-    if self.remaining_bits <= 0 then
-        // data was put into the buffer.  Need to remove the first
-        // item from the buffer.
-        self.remaining_bits = self.buffer_bit_size
-        self.partial_data = self.buffer[0]
-        self.buffer.remove(0)
-    end if
-    ret = floor(self.partial_data / FileLib._pow2[self.remaining_bits - 1]) % 2
-    if self.remaining_bits > 1 then
-        self.remaining_bits = self.remaining_bits - 1
-        self.partial_data = self.partial_data % FileLib._pow2[self.remaining_bits]
-    else
-        // must be == 1
-        self.remaining_bits = 0
-        self.partial_data = 0
-    end if
-    return ret
-end function
-
-// FileLib.BinaryReader.NextUInt8() reads the next uint8 value, or null
-FileLib.BinaryReader.NextUInt8 = function()
-    if not self.fill_buffer(8) then return null
-    while self.remaining_bits < 8
+FileLib.BinaryReader._nextNbits = function(n)
+    if not self.fill_buffer(n) then return null
+    while self.remaining_bits < n
         // Need to add more bits.
         // Not performing buffer checks, because fill_buffer should have
         // given us at least 8 more bits to work with in the buffer +
         // remaining bits.
+        // DEBUG("fetching " + self.buffer[0])
         self.remaining_bits = self.remaining_bits + self.buffer_bit_size
         self.partial_data = ((self.partial_data * FileLib._pow2[self.buffer_bit_size]) + self.buffer[0])
         self.buffer.remove(0)
     end while
-    // Strip off the top 8 bits
-    ret = floor(self.partial_data / FileLib._pow2[self.remaining_bits - 8]) % 256
-    if self.remaining_bits > 8 then
-        self.remaining_bits = self.remaining_bits - 8
+    // Strip off the top n bits
+    ret = floor(self.partial_data / FileLib._pow2[self.remaining_bits - n]) % FileLib._pow2[n]
+    // DEBUG("extracted " + n + " bits == " + ret)
+    if self.remaining_bits > n then
+        self.remaining_bits = self.remaining_bits - n
         self.partial_data = self.partial_data % FileLib._pow2[self.remaining_bits]
     else
-        // must be == 8...
+        // must be == n...
         self.remaining_bits = 0
         self.partial_data = 0
     end if
     return ret
 end function
 
+// FileLib.BinaryReader.NextBit() reads the next 0 or 1 (bit) value, or null
+FileLib.BinaryReader.NextBit = function()
+    return self._nextNbits(1)
+end function
+
+// FileLib.BinaryReader.NextUInt4() reads the next uint8 value, or null
+FileLib.BinaryReader.NextUInt4 = function()
+    return self._nextNbits(4)
+end function
+
+// FileLib.BinaryReader.NextUInt8() reads the next uint8 value, or null
+FileLib.BinaryReader.NextUInt8 = function()
+    return self._nextNbits(8)
+end function
+
 // FileLib.BinaryReader.NextUInt12() reads the next uint12 value, or null
 FileLib.BinaryReader.NextUInt12 = function()
-    if not self.fill_buffer(12) then return null
-    while self.remaining_bits < 12
-        // Need to add more bits.
-        // Not performing buffer checks, because fill_buffer should have
-        // given us at least 12 more bits to work with in the buffer +
-        // remaining bits.
-        self.remaining_bits = self.remaining_bits + self.buffer_bit_size
-        self.partial_data = ((self.partial_data * FileLib._pow2[self.buffer_bit_size]) + self.buffer[0])
-        self.buffer.remove(0)
-    end while
-    // Strip off the top 12 bits
-    ret = floor(self.partial_data / FileLib._pow2[self.remaining_bits - 12]) % 4096
-    if self.remaining_bits > 12 then
-        self.remaining_bits = self.remaining_bits - 12
-        self.partial_data = self.partial_data % FileLib._pow2[self.remaining_bits]
-    else
-        // must be == 12...
-        self.remaining_bits = 0
-        self.partial_data = 0
-    end if
-    return ret
+    return self._nextNbits(12)
 end function
 
 // FileLib.BinaryReader.NextUInt16BE() reads the next uint16 value, or null
 //
 // Uses "big endian" formatting.
 FileLib.BinaryReader.NextUInt16BE = function()
-    if not self.fill_buffer(16) then return null
-    while self.remaining_bits < 16
-        // Need to add more bits.
-        // Not performing buffer checks, because fill_buffer should have
-        // given us at least 8 more bits to work with in the buffer +
-        // remaining bits.
-        self.remaining_bits = self.remaining_bits + self.buffer_bit_size
-        self.partial_data = ((self.partial_data * FileLib._pow2[self.buffer_bit_size]) + self.buffer[0])
-        self.buffer.remove(0)
-    end while
-    // Strip off the top 16 bits
-    ret = floor(self.partial_data / FileLib._pow2[self.remaining_bits - 16]) % 65536
-    if self.remaining_bits > 16 then
-        self.remaining_bits = self.remaining_bits - 16
-        self.partial_data = self.partial_data % FileLib._pow2[self.remaining_bits]
-    else
-        // must be == 16...
-        self.remaining_bits = 0
-        self.partial_data = 0
-    end if
-    return ret
+    return self._nextNbits(16)
 end function
 
 FileLib.BinReader = {}
@@ -373,8 +327,6 @@ end function
 
 // ==========================================================================
 
-
-
 // Ascii() reads an ascii-encoded string value, with a 16-bit character length prefix format.
 FileLib.BinaryReader.Ascii = function()
     size = self.NextUInt16BE
@@ -418,7 +370,6 @@ FileLib.BinaryReader.Skip = function(bytes)
     end if
 end function
 
-
 // ==========================================================================
 // The file format is essentially a compressed tar file + build instructions.
 
@@ -458,7 +409,6 @@ blockUtf16ReplaceHomeFunc = function(tar, size)
     tar.strings[str_idx] = text
     DEBUG("Unpacked UTF16/HOME string " + str_idx + ": " + text[:10])
 end function
-
 
 // Relative-to-home path.
 // Paths are always ascii-encoded.
@@ -673,7 +623,6 @@ blockDeleteFunc = function(tar, size)
     INFO("deleted file [" + path_fqn + "]")
 end function
 
-
 BLOCK_HANDLERS = {
     // BLOCK_HEADER = 0
     // 0: @blockHeaderFunc,
@@ -693,7 +642,6 @@ BLOCK_HANDLERS = {
     // BLOCK_UTF16_REPLACED_HOME = 5
     5: @blockUtf16ReplaceHomeFunc,
     
-
     // BLOCK_FOLDER = 20
     20: @blockFolderFunc,
 
@@ -732,12 +680,9 @@ BLOCK_HANDLERS = {
 
     // BLOCK_DELETE = 85
     85: @blockDeleteFunc,
-
 }
 
-
 // ==========================================================================
-
 
 if params.len != 1 then exit("Error: requires an argument containing the encoded make file to buld.")
 
@@ -755,15 +700,13 @@ if reader == null then
 end if
 INFO("Uncompressing " + source_file.path)
 
-// Need to setup custom attributes...
-reader.strings = {}
-
 handleDataBlocks = function(tar)
     // Get the kind of block
     block_type = tar.NextUInt8
     block_size = tar.NextUInt16BE
-    if block_type == null or block_size == null then break
+    if block_type == null or block_size == null then return true
     if BLOCK_HANDLERS.hasIndex(block_type) then
+        DEBUG("Unpacking block type " + block_type)
         BLOCK_HANDLERS[block_type](tar, block_size)
     else
         INFO("Unknown block type " + block_type)
@@ -771,6 +714,7 @@ handleDataBlocks = function(tar)
         // Read in this block's bytes.
         tar.Skip(block_size)
     end if
+    return false
 end function
 
 // Read the header block first.  If it's compressed, then it'll need to be re-loaded.
@@ -778,44 +722,66 @@ header_type = reader.NextUInt8
 header_size = reader.NextUInt16BE
 if header_type != 0 then exit("Invalid file format")
 file_version = reader.NextUInt16BE
+header_size = reader.NextUInt16BE
 if file_version == 2 then
-    // Need to uncompress it, and re-construct the reader.
-    tar.Skip(header_size)
+    // Need to uncompress the data after the header, and re-construct the reader from
+    // the result.
+    reader.Skip(header_size)
 
     // Read the compression table
-    _blockDecodeTable = []
-    // Encoded as (byte count, number with the byte count) (index 0) ...
-    // The last one is has counts 0 and 0.
+    blockDecodeTable = []
+    // Encoded as (item length - 1, item count) (index 0) ...
+    // The last one is has count 0.
     while true
-        item_size = tar.NextUInt8
-        item_count = tar.NextUInt8
-        if item_size == 0 and item_count == 0 then break
+        item_len = reader.NextUInt4 + 1
+        item_count = reader.NextUInt4
+        if item_count == 0 then break
         while item_count > 0
+            debug_text = ""
             b = []
-            for i in range(1, item_size)
-                b = b + [tar.NextUInt8]
+            for i in range(1, item_len)
+                v = reader.NextUInt8
+                debug_text = debug_text + " " + v
+                b.push(v)
             end for
-            _blockDecodeTable.push(b)
+            // DEBUG("d[" + blockDecodeTable.len + "] =" + debug_text)
+            blockDecodeTable.push(b)
             item_count = item_count - 1
         end while
     end while
+    lastDecodeEntry = blockDecodeTable.len
+    // DEBUG("d[final] is " + lastDecodeEntry)
 
     // decode the remaining values.
     uncompressed = []
     while true
-        index = tar.NextUInt12
-        if index == null then break
-        uncompressed = uncompressed + _blockDecodeTable[index]
+        index = reader.NextUInt12
+        if index == null or index == lastDecodeEntry then break
+        // DEBUG("[] = " + index)
+        uncompressed = uncompressed + blockDecodeTable[index]
     end while
     reader = FileLib.BinReader.New(uncompressed)
 
     // Now read the first block's first two bytes again.
     header_type = reader.NextUInt8
+    DEBUG("Inner header type: " + header_type)
+    if header_type != 0 then exit("Invalid file format")
     header_size = reader.NextUInt16BE
+    DEBUG("Inner header size: " + header_size)
+    file_version = reader.NextUInt16BE
+    DEBUG("Inner header version: " + file_version)
+    header_size = reader.NextUInt16BE
+    DEBUG("Inner header inner size: " + header_size)
 end if
 
-tar.Skip(header_size)
+reader.Skip(header_size)
 if file_version > MAX_SUPPORTED_FILE_VERSION then
     exit("Unsupported file format: " + file_version)
 end if
-handleDataBlocks(reader)
+
+// Need to setup custom attributes...
+reader.strings = {}
+
+while true
+    if handleDataBlocks(reader) then break
+end if
