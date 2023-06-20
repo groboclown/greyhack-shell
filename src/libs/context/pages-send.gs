@@ -11,5 +11,15 @@ ContextLib.Send = function(context, page, record)
         else if context.Pages[page] isa list then
             context.Pages[page].push(record)
         end if
+        if not context.PagesMeta.hasIndex(page) then
+            // Force all the record's keys values to be defined and visible.
+            fields = {}
+            idx = 0
+            for name in record.indexes
+                fields[name] = {"Order": idx}
+                idx = idx + 1
+            end for
+            context.PagesMeta[page] = {"Description": "(not set)", "Fields": fields}
+        end if
     end if
 end function

@@ -39,8 +39,10 @@ CmdletManager.Run = function(cmd, context, session)
     // print("Running [" + invoke.file.path + "] [" + invoke.launchArgs + "]")
     // res = session.shell.launch(invoke.file.path, invoke.launchArgs)
     res = session.shell.launch(invoke.file.path)
-    ContextLib.Log("info", "Running [{path}] returned [{val}]", {"path": invoke.file.path, "val": res})
-    context.Errors.push(ErrorLib.Error.New("[{cmd}] exited with [{res}]", {"cmd": cmd.Name, "res": res}))
+    if res != 1 then
+        context.Errors.push(ErrorLib.Error.New("[{cmd}] exited with [{res}]", {"cmd": cmd.Name, "res": res}))
+    end if
+    ContextLib.Log("debug", "Running [{path}] returned [{val}] ({t})", {"path": invoke.file.path, "val": res, "t": typeof(res)})
     if cmd.PromptOnExit then user_input("(press enter to continue)")
     return res
 end function

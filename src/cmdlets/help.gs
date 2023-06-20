@@ -49,10 +49,6 @@ Help.Main = function()
     // There's also the current session object, but the help doesn't use that.
     // Arguments are the parsed arguments.  They're constructed in the cmdlets.gs file.
     args = context.Args
-    print("args: " + typeof(args))
-    for k in args
-        print("[" + k + "]")
-    end for
     Help.Run(context, args)
     exit
 end function

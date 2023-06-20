@@ -18,6 +18,11 @@
     },
     {
         "type": "compile",
+        "local": "../src/cmdlets/echo.gs",
+        "target": "~/bin/cmdlets/echo"
+    },
+    {
+        "type": "compile",
         "local": "../src/programs/mc/main.gs",
         "target": "~/bin/mc",
         "local-tests": [

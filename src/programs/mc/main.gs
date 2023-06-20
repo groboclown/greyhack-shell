@@ -39,6 +39,7 @@ context.ActivePage = ContextLib.LogPage.Name
 ContextLib.Log("warning", "MC Shell v0.1", {})
 ContextLib.Log("info", "https://github.com/groboclown/greyscript/", {})
 ContextLib.Log("info", "Type 'help' and enter for help.", {})
+ContextLib.Log("info", "Type 'exit' and enter to leave.", {})
 
 while true
     session = ContextLib.GetSession(context)

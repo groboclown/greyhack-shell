@@ -8,11 +8,12 @@ ParsedCommand.Argument = {}
 // ParsedCommand.Argument An argument that can be inspected.
 //
 // Can take a name/value, value, or a command (ParsedCommand).
-ParsedCommand.Argument.New = function(name, value, command)
+ParsedCommand.Argument.New = function(name, value, command, original)
     ret = new ParsedCommand.Argument
     ret.Name = name
     ret.Value = value
     ret.Command = command
+    ret.Original = original
     return ret
 end function
 
@@ -481,28 +482,26 @@ ParsedCommand.Parse = function(text, env, context, defaultPage)
     return ret
 end function
 
-
 ParsedCommand.parseArgument = function(text)
     name = null
     value = null
     if text == "--" or text == "-" then
         // Special handling.
-        return ParsedCommand.Argument.New(null, null, null)
+        return ParsedCommand.Argument.New(null, null, null, text)
     else if text[0:2] == "--" and text.len > 2 then
         p = text.indexOf("=")
         if p > 0 then
             name = text[2:p]
             value = text[p+1:]
-            return ParsedCommand.Argument.New(name, value, null)
+            return ParsedCommand.Argument.New(name, value, null, text)
         else
-            return ParsedCommand.Argument.New(text[2:], true, null)
+            return ParsedCommand.Argument.New(text[2:], true, null, text)
         end if
     else if text[0] == "-" and text.len > 1 then
-        return ParsedCommand.Argument.New(text[1:], true, null)
+        return ParsedCommand.Argument.New(text[1:], true, null, text)
     end if
-    return ParsedCommand.Argument.New(null, text, null)
+    return ParsedCommand.Argument.New(null, text, null, text)
 end function
-
 
 ParsedCommand.parseContext = function(page, index, field, context)
     if page == "" or page == null then page = context.ActivePage

@@ -15,7 +15,6 @@ UI.New = function()
     ret.ErrorHeight = 4
     // There's N lines for the prompt context and 1 line for the prompt itself.
     // page height is Height - 1 - PromptContext lines - ErrorHeight
-    ret.PageStart = 0
     ret.ErrorEnd = 0
     ret.ErrorMetadata = {
         "Default": "Text",
@@ -121,7 +120,11 @@ end function
 
 UI._draw_page = function(context, rowCount)
     ret = []
-    rows = ContextLib.Page(context, context.ActivePage, self.PageStart, rowCount)
+    if not context.PagesMeta[context.ActivePage].hasIndex("PagesStart") then
+        context.PagesMeta[context.ActivePage].PagesStart = 0
+    end if
+    start = context.PagesMeta[context.ActivePage].PagesStart
+    rows = ContextLib.Page(context, context.ActivePage, start, rowCount)
     if rows != null then
         if context.PagesMeta.hasIndex(context.ActivePage) then
             metadata = context.PagesMeta[context.ActivePage]
