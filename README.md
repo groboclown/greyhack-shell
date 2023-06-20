@@ -50,6 +50,8 @@ In general, if you have a bundle file `my-bundle.json`, you'll want to put the g
 $ python bin/ghtar.py -o import.txt my-bundle.json
 ```
 
+If the files are bigger than about 100k, the game will tell you that the file is too big.  You'll need to either slim down your bundle, or try running with the compress (`-z`) option.
+
 From there, you want to import the text into your game's computer.  You will first need to [set up `make` in your game's computer](#setting-up-the-bundle-make-tool).
 
 1. In the Grey Hack game, open Notepad.

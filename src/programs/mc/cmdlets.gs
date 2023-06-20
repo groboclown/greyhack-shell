@@ -3,6 +3,7 @@
 
 // Requires:
 // import_code("../../libs/files/paths.gs")
+// import_code("../../libs/errors.gs")
 
 CmdletManager = {}
 
@@ -25,6 +26,9 @@ CmdletManager.LoadConfig = function(section)
 end function
 
 CmdletManager.Run = function(cmd, context, session)
+    // TODO the cmd.Args can include a sub-command that needs to run first and
+    //   have its result be passed to the main command.
+
     invoke = self.findCommand(cmd, session)
     if invoke == null then
         ContextLib.Log("error", "Could not find command " + cmd.Name)
@@ -32,10 +36,11 @@ CmdletManager.Run = function(cmd, context, session)
     end if
     context.Cmd = invoke.name
     context.Args = invoke.contextArgs
-    print("Running [" + invoke.file.path + "] [" + invoke.args + "]")
-    res = session.shell.launch(invoke.file.path, invoke.args)
+    // print("Running [" + invoke.file.path + "] [" + invoke.launchArgs + "]")
+    // res = session.shell.launch(invoke.file.path, invoke.launchArgs)
+    res = session.shell.launch(invoke.file.path)
     ContextLib.Log("info", "Running [{path}] returned [{val}]", {"path": invoke.file.path, "val": res})
-    context.Errors.push("[" + cmd.Name + "] exited with [" + res + "]")
+    context.Errors.push(ErrorLib.Error.New("[{cmd}] exited with [{res}]", {"cmd": cmd.Name, "res": res}))
     if cmd.PromptOnExit then user_input("(press enter to continue)")
     return res
 end function
@@ -48,12 +53,11 @@ CmdletManager.findCommand = function(cmd, session)
     // Is this a commandlet?
     file = self.findInPath(cmdName, self.CmdletPaths, session)
     if file != null then
-        return {"file": file, "args": "", "name": cmd.Name, "contextArgs": cmd.Args}
+        return {"file": file, "contextArgs": CmdletManager.ArgumentSet.New(cmd.Args), "name": file.path}
     end if
     file = self.findInPath(cmdName, self.BinPaths, session)
     if file != null then
-        // FIXME FullArgs needs to be something real.
-        return {"file": file, "args": cmd.FullArgs, "name": file.path, "contextArgs": []}
+        return {"file": file, "contextArgs": CmdletManager.ArgumentSet.New(cmd.Args), "name": file.path}
     end if
     return null
 end function
@@ -66,7 +70,32 @@ CmdletManager.findInPath = function(cmdName, paths, session)
         filename = FileLib.Paths.NormalizeFilename(parent + "/" + cmdName, session.home, session.cwd)
         file = session.computer.File(filename)
         if file != null and not file.is_folder and file.is_binary then return file
-        print("Did not find [" + filename + "]")
+        // print("Did not find [" + filename + "]")
     end for
+    return null
+end function
+
+
+CmdletManager.ArgumentSet = {}
+CmdletManager.ArgumentSet.New = function(argList)
+    ret = new CmdletManager.ArgumentSet()
+    ret.Ordered = argList
+    ret.Count = argList.len
+    ret.Named = {}
+    ret.ValueSet = {}
+    ret.Empty = argList.len <= 0
+    for arg in argList
+        if arg.Name != null then ret.Named[arg.Name] = arg.Value
+        ret.ValueSet[arg.Value] = true
+    end for
+    return ret
+end function
+
+CmdletManager.ArgumentSet.ContainsValue = function(name)
+    return self.ValueSet.hasIndex(name)
+end function
+
+CmdletManager.ArgumentSet.GetNamed = function(name)
+    if self.Named.hasIndex(name) then return self.Named[name]
     return null
 end function

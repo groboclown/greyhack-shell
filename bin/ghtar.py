@@ -1463,8 +1463,8 @@ def mk_compress_header(reverse_lookup: Dict[bytes, int]) -> bytes:
 
         for item in group:
             # Directly add the whole item to the header.
-            debug(f"d[{debug_idx}] = {item}")
-            debug_idx += 1
+            # debug(f"d[{debug_idx}] = {item}")
+            # debug_idx += 1
             header += item
 
     # Put the terminator.
@@ -1480,7 +1480,7 @@ def mk_encoded_body(encoded: List[int], table_size: int) -> bytes:
     is_odd = False
     for idx in encoded:
         # Do the variable length encoding
-        debug(f"[] = {idx}")
+        # debug(f"[] = {idx}")
         if is_odd:
             ret += bytes([remainder | ((idx >> 8) & 0xf)])
             ret += bytes([idx & 0xff])
@@ -1639,7 +1639,7 @@ def main(args: Sequence[str]) -> int:
         return 1
     if parsed.compress:
         debug(f"Source size: {len(blocks)}")
-        debug(f" = {blocks}")
+        # debug(f" = {blocks}")
         blocks = compress(blocks)
         debug(f"Compressed size: {len(blocks)}")
     out = convert(blocks, not parsed.multiline)

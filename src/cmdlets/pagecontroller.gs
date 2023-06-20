@@ -63,11 +63,25 @@ PageController.Page__nameSorter = function(a, b)
     return 1
 end function
 
+PageController.Run = function(context, args)
+    if args.Ordered[0].Value == "?" then
+        PageController.MakePageListPage(context)
+        ContextLib.Log("info", "Setting active page to '?'")
+        context.ActivePage = "?"
+        return 0
+    end if
+    if args.Ordered[0].Value == "/" then
+        PageController.AdvanceActivePage(1, context)
+        return 0
+    end if
+    if args.Ordered[0].Value == "\" then
+        PageController.AdvanceActivePage(-1, context)
+        return 0
+    end if
+    return 1
+end function
 
-context = ContextLib.Get()
-args = context.Args
-
-if args.len <= 0 then
+PageController.Help = function()
     ContextLib.Log("warning", "Page Controller")
     ContextLib.Log("info", "Manages the page display.")
     ContextLib.Log("info", "This tool has quick access for flipping between pages and through pages.")
@@ -81,18 +95,15 @@ if args.len <= 0 then
     ContextLib.Log("info", " (page name)  Name of the page to view")
     ContextLib.Log("info", " If you specify a number, then that's the number of items to change")
     exit
-end if
-if args[0].Value == "?" then
-    PageController.MakePageListPage(context)
-    ContextLib.Log("info", "Setting active page to '?'")
-    context.ActivePage = "?"
+end function
+
+PageController.Main = function()
+    context = ContextLib.Get()
+    args = context.Args
+
+    if args.Empty then PageController.Help()
+    res = PageController.Run(context, args)
     exit
-end if
-if args[0].Value == "/" then
-    PageController.AdvanceActivePage(1, context)
-    exit
-end if
-if args[0].Value == "\" then
-    PageController.AdvanceActivePage(-1, context)
-    exit
-end if
+end function
+
+if locals == globals then PageController.Main()

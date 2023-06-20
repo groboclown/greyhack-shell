@@ -55,7 +55,6 @@ UI.Draw = function(context, session)
     errors = self._draw_errors(context)
     page = self._draw_page(context, self.Height - promptLines.len - errors.len - 2)
     prompt = promptLines[-1]
-    sep = 
     screen = ([self._draw_separator(context.ActivePage)] +
         page +
         [self._draw_separator("Errors")] +
@@ -104,9 +103,13 @@ UI._draw_errors = function(context)
     ret = []
     if start < tail then
         fields = self._get_ordered_fields(self.ErrorMetadata.Fields)
-
         while start < tail
-            ret.push(self._draw_row(context.Errors[start], fields))
+            row = context.Errors[start]
+            if not row isa map then
+                // Something put a non-error object into the errors.  Tsk.
+                row = {"Text": FormatStr._as_str(row)}
+            end if
+            ret.push(self._draw_row(row, fields))
             start = start + 1
         end while
     end if
@@ -158,12 +161,17 @@ UI._draw_row = function(row, orderedFields)
         ret = ret + "<color=" + color + ">"
         val = "()"
         key = field.Name
-        print(FormatStr.PyFormat("Getting field [{key}] from row [{row}]", {"key":key, "row":row}))
-        if row.hasIndex(key) then val = row[key]
-        // if field.hasIndex("Text") then
+        // print(FormatStr.PyFormat("Getting field [{key}] from row [{row}]", {"key":key, "row":row}))
+        if row.hasIndex(key) then
+            val = row[key]
+        end if
+        if field.hasIndex("Text") then
             // This line seems buggy.
-            // val = field.Text(val)
-        // else if not val isa string then
+            textf = @field.Text
+            if @textf isa funcRef then
+                val = textf(val)
+            end if
+        end if
         if not val isa string then
             val = FormatStr._as_str(val)
         end if

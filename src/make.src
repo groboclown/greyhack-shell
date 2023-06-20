@@ -698,7 +698,7 @@ reader = FileLib.A85Reader.New(source_file)
 if reader == null then
     exit("Could not find file " + params[0])
 end if
-INFO("Uncompressing " + source_file.path)
+INFO("Unpacking " + source_file.path)
 
 handleDataBlocks = function(tar)
     // Get the kind of block
@@ -753,12 +753,18 @@ if file_version == 2 then
     // DEBUG("d[final] is " + lastDecodeEntry)
 
     // decode the remaining values.
+    nextReport = 10000
     uncompressed = []
     while true
         index = reader.NextUInt12
         if index == null or index == lastDecodeEntry then break
         // DEBUG("[] = " + index)
+        // Note that this array concatenation gets slower the bigger the list.
         uncompressed = uncompressed + blockDecodeTable[index]
+        if uncompressed.len > nextReport then
+            print("<color=#707070>Deflated " + uncompressed.len + " bytes...</color>")
+            nextReport = uncompressed.len + 10000
+        end if
     end while
     reader = FileLib.BinReader.New(uncompressed)
 
@@ -784,4 +790,4 @@ reader.strings = {}
 
 while true
     if handleDataBlocks(reader) then break
-end if
+end while
