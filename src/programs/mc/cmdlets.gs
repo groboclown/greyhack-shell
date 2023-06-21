@@ -37,8 +37,8 @@ CmdletManager.Run = function(cmd, context, session)
     context.Cmd = invoke.name
     context.Args = invoke.contextArgs
     // print("Running [" + invoke.file.path + "] [" + invoke.launchArgs + "]")
-    // res = session.shell.launch(invoke.file.path, invoke.launchArgs)
-    res = session.shell.launch(invoke.file.path)
+    // res = session.Shell.launch(invoke.file.path, invoke.launchArgs)
+    res = session.Shell.launch(invoke.file.path, self.mkLaunchArgs(cmd, session))
     if res != 1 then
         context.Errors.push(ErrorLib.Error.New("[{cmd}] exited with [{res}]", {"cmd": cmd.Name, "res": res}))
     end if
@@ -49,8 +49,15 @@ end function
 
 CmdletManager.findCommand = function(cmd, session)
     // For now, just trivial aliasing.
+    // This needs to be plugged back into the parser.
     cmdName = cmd.Name
     if self.Aliases.hasIndex(cmdName) then cmdName = self.Aliases[cmdName]
+
+    // Is this an absolute path?
+    file = self.getBinFile(cmdName, session)
+    if file != null then
+        return {"file": file, "contextArgs": CmdletManager.ArgumentSet.New(cmd.Args), "name": file.path}
+    end if
 
     // Is this a commandlet?
     file = self.findInPath(cmdName, self.CmdletPaths, session)
@@ -64,16 +71,42 @@ CmdletManager.findCommand = function(cmd, session)
     return null
 end function
 
+CmdletManager.mkLaunchArgs = function(cmd, session)
+    ret = []
+    for arg in cmd.Args
+        val = arg.Original
+        if val.indexOf("*") != null then
+            // file expansion for free.
+            for item in FileLib.Expand.ExpandFiles([val], session.Computer, session.Home, session.Cwd)
+                if item.Name != null then
+                    ret.push(item.Name)
+                else
+                    ret.push(item.Value)
+                end if
+            end for
+        else
+            ret.push(val)
+        end if
+    end for
+    return ret.join(" ")
+end function
+
 // CmdletManager.findInPath() Find the binary in one of the paths (array of strings)
 //
 // Returns the file object, or null
 CmdletManager.findInPath = function(cmdName, paths, session)
     for parent in paths
-        filename = FileLib.Paths.NormalizeFilename(parent + "/" + cmdName, session.home, session.cwd)
-        file = session.computer.File(filename)
-        if file != null and not file.is_folder and file.is_binary then return file
-        // print("Did not find [" + filename + "]")
+        file = self.getBinFile(parent + "/" + cmdName, session)
+        if file != null then return file
     end for
+    return null
+end function
+
+CmdletManager.getBinFile = function(cmdName, session)
+    filename = FileLib.Paths.NormalizeFilename(cmdName, session.Home, session.Cwd)
+    file = session.Computer.File(filename)
+    if file != null and not file.is_folder and file.is_binary then return file
+    // print("Did not find [" + filename + "]")
     return null
 end function
 

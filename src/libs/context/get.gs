@@ -15,23 +15,23 @@ ContextLib.Get = function()
     if not ret.hasIndex("NamedSessions") then ret.NamedSessions = {}
     if not ret.NamedSessions.hasIndex("local") then
         ret.NamedSessions.local = {
-            "name": "local",
-            "ip": null, // could be computer.local_ip or computer.public_ip
-            "home": home_dir,
-            "user": active_user,
-            "password": null,
-            "shell": get_shell,
-            "computer": get_shell.host_computer,
-            "cwd": home_dir,
-            "cwdr": "~",
-            "cwdn": "~",
-            "on_logout": null,
-            "on_logout_post": null,
-            "on_login": null,
-            "on_cmd": null,
-            "on_cmd_post": null,
-            "parent": null,
-            "env": {},
+            "Name": "local",
+            "Ip": null, // could be computer.local_ip or computer.public_ip
+            "Home": home_dir,
+            "User": active_user,
+            "Password": null,
+            "Shell": get_shell,
+            "Computer": get_shell.host_computer,
+            "Cwd": home_dir,
+            "CwdR": "~",
+            "CwdN": "~",
+            "OnLogout": null,
+            "OnLogoutPost": null,
+            "OnLogin": null,
+            "OnCmd": null,
+            "OnCmdPost": null,
+            "Parent": null,
+            "Env": {},
         }
     end if
     if not ret.hasIndex("CurrentSessionName") then ret.CurrentSessionName = "local"

@@ -15,7 +15,7 @@ TestConfig_Load = function(t)
     end function
     context = {
         "Errors": [],
-        "NamedSessions": {"local": {"home": "/", "cwd": "/tmp", "shell": {}, "computer": local_computer}},
+        "NamedSessions": {"local": {"Home": "/", "Cwd": "/tmp", "Shell": {}, "Computer": local_computer}},
         "CurrentSessionName": "local"}
     // First make sure our mock is good.
     session = ContextLib.GetSession(context)

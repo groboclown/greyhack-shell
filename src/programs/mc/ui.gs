@@ -10,7 +10,7 @@ UI = {}
 
 UI.New = function()
     ret = new UI
-    ret.Width = 80
+    ret.Width = 100
     ret.Height = 30
     ret.ErrorHeight = 4
     // There's N lines for the prompt context and 1 line for the prompt itself.
@@ -34,7 +34,9 @@ UI.New = function()
     }
     ret.ColSep = "  "
     ret.LineSep = "="
-    ret.SepColor = "#101040"
+    ret.SepColor = "#202040"
+    ret.SepHeadColor = "#202060"
+    ret.SepCountColor = "#203060"
     return ret
 end function
 
@@ -54,6 +56,7 @@ UI.Draw = function(context, session)
     errors = self._draw_errors(context)
     page = self._draw_page(context, self.Height - promptLines.len - errors.len - 2)
     prompt = promptLines[-1]
+    // TODO should include possible line number position (current / total)
     screen = ([self._draw_separator(context.ActivePage)] +
         page +
         [self._draw_separator("Errors")] +
@@ -63,11 +66,18 @@ UI.Draw = function(context, session)
     return [screen, prompt]
 end function
 
-UI._draw_separator = function(header)
-    ret = "<color=" + self.SepColor + ">"
+UI._draw_separator = function(header, counterStart = null, counterTotal = null)
+    ret = "<color=" + self.SepHeadColor + ">"
     tail = header.len
     if tail + 1 > self.Width then tail = self.Width - 2
-    ret = ret + header[:tail] + " "
+    ret = ret + header[:tail] + "</color>"
+    if counterStart != null then
+        ret = ret + "<color=" + self.SepCountColor + ">" + counterStart + "</color>"
+    end if
+    if counterTotal != null then
+        ret = ret + "<color=" + self.SepCountColor + "> / " + counterTotal + "</color>"
+    end if
+    ret = ret + "<color=" + self.SepColor + ">" + " "
     while ret.len < self.Width
         ret = ret + self.LineSep
     end while
@@ -76,10 +86,10 @@ end function
 
 UI._draw_prompt = function(session)
     ret = []
-    if session.env.hasIndex("PROMPT") then
-        params = {} + session.env + session
+    if session.Env.hasIndex("PROMPT") then
+        params = {} + session.Env + session
         // To be accurate, this should include limiting the prompt to the Width.
-        for line in self._split_lines(session.env.PROMPT)
+        for line in self._split_lines(session.Env.PROMPT)
             ret.push(FormatStr.PyFormat(line, params))
         end for
     end if

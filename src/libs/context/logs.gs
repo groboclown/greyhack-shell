@@ -124,7 +124,7 @@ ContextLib.Log = function(level, message, arguments=null, context=null)
 
     // Should it be logged?
     if loglevel.level >= context.PagesMeta[ContextLib.LogPage.Name].minlevel then
-        ContextLib.Send(context, ContextLib.LogPage.Name, {
+        ContextLib.SendToPage(context, ContextLib.LogPage.Name, {
             "level": loglevel.name,
             "msg": message,
             "args": arguments,

@@ -48,38 +48,20 @@ ContextLib.NextPageRow = function(context, page)
     return ret
 end function
 
-// ClearPage() Removes the rows from a page, and returns the number of removed rows.
+// ClearPage() Clears the records in a page.
 //
-// If the page does not exist, this returns 0.
-//
-// If a "start" is given, then all rows starting with that index are
-// removed.  If "count" is given, then only that number of rows
-// (up to the number of available rows including and after the start row)
-// are removed.
-ContextLib.ClearPage = function(context, page, start=null, count=null)
-    page_range = ContextLib._page_range(context, page, start, count)
-    if page_range == null then return 0
-    src = page_range[0]
-    start = page_range[1]
-    tail = page_range[2]
-    page = page_range[3]
-    res = []
-    count = 0
-    if start > 0 then
-        if tail < src.len then
-            res = src[0:start] + src[tail:]
-            count = tail - start
-        else
-            res = src[0:start]
-            count = src.len - start
+// Set "remainder" argument to the number of items to keep.
+// Records are always cleared from the top first (first in, first out).
+ContextLib.ClearPage = function(context, page, remainder = null)
+    if context != null and page != null and context isa map and page isa string and context.hasIndex("Pages") and context.Pages.hasIndex(page) then
+        if remainder == null or not remainder isa number or remainder < 0 then
+            remainder = 0
         end if
-    else if tail < src.len then
-        res = src[tail:]
-        count = tail
-        // else final page result is empty
+        while context.Pages[page].len > remainder
+            // Remove from the front of the list.
+            context.Pages[page].pull()
+        end while
     end if
-    context.Pages[page] = res
-    return count
 end function
 
 // private function - _page_range returns the page's rows, the start index, end index, page name

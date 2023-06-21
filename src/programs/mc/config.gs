@@ -15,9 +15,9 @@ MCConfig.Load = function(context, filename = null)
         print("ERROR: NO SESSION FOUND")
         return null
     end if
-    filename = FileLib.Paths.NormalizeFilename(filename, session.home, session.cwd)
+    filename = FileLib.Paths.NormalizeFilename(filename, session.Home, session.Cwd)
     print("Loading file " + filename)
-    f = session.computer.File(filename)
+    f = session.Computer.File(filename)
     if f == null or f.is_binary or f.is_folder then
         // Loading a null config file is fine.
         print("Could not find a configuration file named " + filename + " ( " + f + ")")

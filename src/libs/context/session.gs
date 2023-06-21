@@ -40,23 +40,23 @@ ContextLib.AddSession = function(context, name, ipAddress, port, user, password,
     end if
 
     ret = {
-        "name": name,
-        "ip": ipAddress,
-        "home": "/home/" + user, // best guess
-        "user": user,
-        "password": password,
-        "shell": shell,
-        "computer": shell.host_computer,
-        "cwd": "/home/" + user,
-        "cwdr": "~",
-        "cwdn": "~",
-        "on_logout": null,
-        "on_logout_post": null,
-        "on_login": null,
-        "on_cmd": null,
-        "on_cmd_post": null,
-        "parent": source.name,
-        "env": {},
+        "Name": name,
+        "Ip": ipAddress,
+        "Home": "/home/" + user, // best guess
+        "User": user,
+        "Password": password,
+        "Shell": shell,
+        "Computer": shell.host_computer,
+        "Cwd": "/home/" + user,
+        "CwdR": "~",
+        "CwdN": "~",
+        "OnLogout": null,
+        "OnLogoutPost": null,
+        "OnLogin": null,
+        "OnCmd": null,
+        "OnCmdPost": null,
+        "Parent": source.name,
+        "Env": {},
     }
     context.NamedSessions[name] = ret
     if ContextLib.hasIndex("Log") then
@@ -80,21 +80,21 @@ ContextLib.GetSession = function(context, name=null)
         return null
     end if
     ret = context.NamedSessions[name]
-    if ret.shell == null then
+    if ret.Shell == null then
         // Requires a login.
-        if ret.parent == null then
+        if ret.Parent == null then
             context.Errors.push(ErrorLib.Error.New(
                 "No known parent for session {name}", {"source": "GetSession", "name": name}))
             return null
         end if
-        shell = ret.parent.shell.connect_service(ipAddress, port, user, password)
+        shell = ret.Parent.Shell.connect_service(ipAddress, port, user, password)
         if shell == null or shell isa string then
             context.Errors.push(ErrorLib.Error.New(
                 "Failed connecting to {ipAddress}:{port} ({err})", {"source": "GetSession", "ipAddress": ipAddress, "port": port, err: shell}))
             return null
         end if
-        ret.shell = shell
-        ret.computer = shell.host_computer
+        ret.Shell = shell
+        ret.Computer = shell.host_computer
         if ContextLib.hasIndex("Log") then
             ContextLib.Log("info", "Logged into {ip}", {
                 "ip": shell.ip,
@@ -102,7 +102,7 @@ ContextLib.GetSession = function(context, name=null)
             })
         end if
         // Does nothing if not a function, calls if a function.
-        ret.on_login
+        ret.OnLogin
     end if
     return ret
 end function
@@ -120,12 +120,12 @@ ContextLib.SessionLogout = function(context, name=null)
         return null
     end if
     ret = context.NamedSessions[name]
-    if ret.shell != null then
+    if ret.Shell != null then
         // Does nothing if not a function, calls if a function.
-        ret.on_logout
+        ret.OnLogout
 
         // TODO what is the right approach to log out?
-        ret.shell = null
+        ret.Shell = null
         
         if ContextLib.hasIndex("Log") then
             ContextLib.Log("info", "Logged out of {ip}", {
@@ -134,7 +134,7 @@ ContextLib.SessionLogout = function(context, name=null)
             })
         end if
 
-        ret.on_logout_post
+        ret.OnLogoutPost
         return true
     end if
     return false

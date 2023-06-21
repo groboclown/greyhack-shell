@@ -11,6 +11,8 @@ import_code("../libs/format/formatted-str.gs")
 Help = {}
 
 Help.Run = function(context, args)
+    context.ActivePage = ContextLib.LogPage.Name
+
     // A short-hand for the output logging.
     out = function(t)
         ContextLib.Log("info", t)
@@ -18,6 +20,8 @@ Help.Run = function(context, args)
 
     if args.Empty then
         // High level help.
+        ContextLib.Log("warning", "Help on Help")
+        out("")
         out("Help is broken into sections.  Use 'help (section name)' to select one.")
         out("")
         out("display   - what you're looking at")
@@ -29,7 +33,23 @@ Help.Run = function(context, args)
         return
     end if
 
+    if args.ContainsValue("display") then
+        ContextLib.Log("warning", "Display Help")
+        out("The MC screen is split into three areas - the page, the errors, and the prompt.")
+        out("")
+        ContextLib.Log("warning", "Display: Page")
+        out("Because of the limitations in input control with Grey Hack, an innovation")
+        out("in shells was made to split the usable store of data into referencable 'pages'.")
+        out("It's influenced by tmux and screen, and databases.")
+        out("")
+        out("The page has rows, with each row containing different fields.  From the command line,")
+        out("you can reference a field from a page as a short-hand for a cut-and-paste into your")
+        out("command.")
+        out("")
+    end if
+
     if args.ContainsValue("syntax") then
+        ContextLib.Log("warning", "Syntax Help")
         out("The general syntax is like a terminal shell:")
         out("")
         out("   cmdlet-name argument1 argument2")

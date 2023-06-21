@@ -8,8 +8,28 @@
     },
     {
         "type": "compile",
+        "local": "../src/cmdlets/cat.gs",
+        "target": "~/bin/cmdlets/cat"
+    },
+    {
+        "type": "compile",
+        "local": "../src/cmdlets/clear.gs",
+        "target": "~/bin/cmdlets/clear"
+    },
+    {
+        "type": "compile",
+        "local": "../src/cmdlets/echo.gs",
+        "target": "~/bin/cmdlets/echo"
+    },
+    {
+        "type": "compile",
         "local": "../src/cmdlets/help.gs",
         "target": "~/bin/cmdlets/help"
+    },
+    {
+        "type": "compile",
+        "local": "../src/cmdlets/ls.gs",
+        "target": "~/bin/cmdlets/ls"
     },
     {
         "type": "compile",
@@ -18,8 +38,13 @@
     },
     {
         "type": "compile",
-        "local": "../src/cmdlets/echo.gs",
-        "target": "~/bin/cmdlets/echo"
+        "local": "../src/cmdlets/ps.gs",
+        "target": "~/bin/cmdlets/ps"
+    },
+    {
+        "type": "compile",
+        "local": "../src/cmdlets/set.gs",
+        "target": "~/bin/cmdlets/set"
     },
     {
         "type": "compile",

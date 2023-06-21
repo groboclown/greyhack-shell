@@ -21,6 +21,7 @@ Echo.Run = function(context, args)
         ContextLib.Log("info", "When just the text is given, then the text is sent to")
         ContextLib.Log("info", "the log page.")
         ContextLib.Log("info", "")
+        return
     end if
     page = args.GetNamed("page")
     if page == null then page = args.GetNamed("p")
@@ -49,7 +50,7 @@ Echo.Run = function(context, args)
             row[arg.Name] = arg.Value
         end if
     end for
-    ContextLib.Send(context, page, row)
+    ContextLib.SendToPage(context, page, row)
 
 end function
 

@@ -5,6 +5,8 @@ import_code("../../libs/format/formatted-str.gs")
 import_code("../../libs/errors.gs")
 import_code("../../libs/files/paths.gs")
 import_code("../../libs/files/json.gs")
+import_code("../../libs/files/star-glob.gs")
+import_code("../../libs/files/expand-args.gs")
 import_code("../../libs/context/get.gs")
 import_code("../../libs/context/pages-create.gs")
 import_code("../../libs/context/pages-read.gs")
@@ -14,7 +16,6 @@ import_code("../../libs/context/logs.gs")
 import_code("../../libs/std-lib/sort.gs")
 
 import_code("config.gs")
-import_code("fd.gs")
 import_code("parser.gs")
 import_code("ui.gs")
 import_code("cmdlets.gs")
@@ -50,7 +51,7 @@ while true
     end for
     line = user_input(screen[1])
     if line == "exit" then exit
-    cmdList = ParsedCommand.Parse(line, session.env, context)
+    cmdList = ParsedCommand.Parse(line, session.Env, context)
     for cmd in cmdList
         errCount = 0
         for err in cmd.Errors

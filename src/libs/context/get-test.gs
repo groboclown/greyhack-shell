@@ -12,7 +12,7 @@ TestGet_no_context = function(t)
     end while
 
     context = ContextLib.Get()
-    t.AssertEqual("local", context.NamedSessions.local.name)
+    t.AssertEqual("local", context.NamedSessions.local.Name)
 end function
 
 if locals == globals then T.RunTests

@@ -684,7 +684,7 @@ BLOCK_HANDLERS = {
 
 // ==========================================================================
 
-if params.len != 1 then exit("Error: requires an argument containing the encoded make file to buld.")
+if params.len != 1 then exit("Error: requires an argument containing the encoded make file to build.")
 
 name = params[0]
 if name[0] != "/" then
