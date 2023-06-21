@@ -14,7 +14,7 @@ Ps = {}
 Ps.PageName = "ps"
 
 Ps.Run = function(context, args, session)
-    if args.GetNamed("h") or args.GetNamed("--help") then
+    if args.GetNamed("h") or args.GetNamed("help") then
         ContextLib.Log("warning", "ps - Show running processes.")
         ContextLib.Log("info", "")
         ContextLib.Log("info", "Usage: ps")

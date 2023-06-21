@@ -107,3 +107,21 @@ MCConfig.sec.StrList = function(key, defaultValue)
     end if
     return defaultValue
 end function
+
+MCConfig.sec.StrMap = function(key, defaultValue)
+    if self.cfg.hasIndex(key) then
+        ret = self.cfg[key]
+        if ret isa map then
+            mapRes = {}
+            for key in ret.indexes
+                // json maps always have string keys.
+                item = ret[key]
+                if key isa string and (item isa string or item isa number) then
+                    mapRes[key] = str(item)
+                end if
+            end for
+            return mapRes
+        end if
+    end if
+    return defaultValue
+end function

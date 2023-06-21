@@ -7,6 +7,11 @@
         ]
     },
     {
+        "type": "file",
+        "path": "~/.mc.json",
+        "local": "../example-mc.json"
+    },
+    {
         "type": "compile",
         "local": "../src/cmdlets/cat.gs",
         "target": "~/bin/cmdlets/cat"

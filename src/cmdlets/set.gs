@@ -12,7 +12,7 @@ import_code("../libs/format/formatted-str.gs")
 Set = {}
 
 Set.Run = function(context, args, session)
-    if args.GetNamed("h") or args.GetNamed("--help") then
+    if args.GetNamed("h") or args.GetNamed("help") then
         ContextLib.Log("warning", "set - Set an environment variable.")
         ContextLib.Log("info", "")
         ContextLib.Log("info", "Usage: set [name]=[value]")

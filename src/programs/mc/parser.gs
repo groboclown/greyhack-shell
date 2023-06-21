@@ -477,7 +477,8 @@ ParsedCommand.Parse = function(text, env, context, defaultPage)
         pos = pos + 1
     end while
     if stateStack[-1].state != 0 then
-        ret.push(ParsedCommand.Command.New(null, [], stateStack[-1].problems + ["Command did not terminate correctly."]))
+        // This stateStack[-1].problems may not exist.
+        ret.push(ParsedCommand.Command.New(null, [], stateStack[0].problems + ["Command did not terminate correctly."]))
     end if
     return ret
 end function

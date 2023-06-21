@@ -389,7 +389,7 @@ class FileManager:
             MappedFile(path=k, requested_path=k, contents=v, is_home_replaced=False)
             for k, v in self.text_contents.items()
         ]
-        for local_file, game_file in self.text_files.items():
+        for game_file, local_file in self.text_files.items():
             contents = FileManager._load_file(local_file)
             if contents is None:
                 is_ok = False

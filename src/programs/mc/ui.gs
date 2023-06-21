@@ -37,6 +37,24 @@ UI.New = function()
     ret.SepColor = "#202040"
     ret.SepHeadColor = "#202060"
     ret.SepCountColor = "#203060"
+    ret.DefaultFieldColor = "#808080"
+
+    ret.PageActiveBG = "#20300040"
+    ret.PageActiveColor = "#a0a0a0"
+    ret.PageSuffixColor = "#101060"
+    ret.PageInactiveBG = "#10102038"
+    ret.PageInactiveColor = "#20d0d0"
+    ret.PageScrollBG = "#10102038"
+    ret.PageScrollColor = "#404000"
+
+    ret.SessionActiveBG = "#20300040"
+    ret.SessionActiveColor = "#a0a0a0"
+    ret.SessionSuffixColor = "#101060"
+    ret.SessionInactiveBG = "#10102038"
+    ret.SessionInactiveColor = "#20d0d0"
+    ret.SessionScrollBG = "#10102038"
+    ret.SessionScrollColor = "#404000"
+
     return ret
 end function
 
@@ -47,6 +65,27 @@ UI.LoadConfig = function(section)
     self.ErrorHeight = section.Int("error-height", self.ErrorHeight)
     self.ColSep = section.Str("column-separator", self.ColSep)
     self.LineSep = section.Str("line-separator-char", self.LineSep)
+    self.SepColor = section.Str("column-separator-color", self.SepColor)
+    // SepHeadColor
+    // SepCountColor
+    self.DefaultFieldColor = section.Str("default-field-color", self.DefaultFieldColor)
+
+    self.PageActiveBG      = section.Str("page-active-bg",      self.PageActiveBG)
+    self.PageActiveColor   = section.Str("page-active-color",   self.PageActiveColor)
+    self.PageSuffixColor   = section.Str("page-suffix-color",   self.PageSuffixColor)
+    self.PageInactiveBG    = section.Str("page-inactive-bg",    self.PageInactiveBG)
+    self.PageInactiveColor = section.Str("page-inactive-color", self.PageInactiveColor)
+    self.PageScrollBG      = section.Str("page-scroll-bg",      self.PageScrollBG)
+    self.PageScrollColor   = section.Str("page-scroll-color",   self.PageScrollColor)
+
+    self.SessionActiveBG      = section.Str("session-active-bg",      self.SessionActiveBG)
+    self.SessionActiveColor   = section.Str("session-active-color",   self.SessionActiveColor)
+    self.SessionSuffixColor   = section.Str("session-suffix-color",   self.SessionSuffixColor)
+    self.SessionInactiveBG    = section.Str("session-inactive-bg",    self.SessionInactiveBG)
+    self.SessionInactiveColor = section.Str("session-inactive-color", self.SessionInactiveColor)
+    self.SessionScrollBG      = section.Str("session-scroll-bg",      self.SessionScrollBG)
+    self.SessionScrollColor   = section.Str("session-scroll-color",   self.SessionScrollColor)
+
 end function
 
 // Draw() Returns two strings, the whole screen, and the prompt.
@@ -57,13 +96,116 @@ UI.Draw = function(context, session)
     page = self._draw_page(context, self.Height - promptLines.len - errors.len - 2)
     prompt = promptLines[-1]
     // TODO should include possible line number position (current / total)
-    screen = ([self._draw_separator(context.ActivePage)] +
+    screen = (
+        [self._draw_page_nav(context)] +
         page +
-        [self._draw_separator("Errors")] +
+        [self._draw_separator("Errors", context.Errors.len - self.ErrorEnd, context.Errors.len)] +
         errors +
-        [self._draw_separator("")] +
+        [self._draw_session_nav(context)] +
         promptLines[:-1])
     return [screen, prompt]
+end function
+
+UI._draw_page_nav = function(context)
+    ap = context.ActivePage
+    apRowCount = context.Pages[ap].len
+    apTail = context.PagesMeta[ap].PagesEnd
+    suffix = "(" + apTail + " / " + apRowCount + ")"
+    return self._draw_nav({
+        "activeName": ap, "activeSuffix": suffix,
+        "nameOrder": context.PagesOrder,
+        "activeMarkColor": self.PageActiveBG, "activeTextColor": self.PageActiveColor, "activeSuffixColor": self.PageSuffixColor,
+        "inactiveMarkColor": self.PageInactiveBG, "inactiveTextColor": self.PageInactiveColor,
+        "scrollMarkColor": self.PageScrollBG, "scrollTextColor": self.PageScrollColor,
+    })
+end function
+
+UI._draw_session_nav = function(context)
+    return self._draw_nav({
+        "activeName": context.CurrentSessionName, "activeSuffix": "",
+        "nameOrder": context.NamedSessionsOrder,
+        "activeMarkColor": "#ffff0040", "activeTextColor": "#101010", "activeSuffixColor": "#303030",
+        "inactiveMarkColor": "#40101040", "inactiveTextColor": "#20d0d0",
+        "scrollMarkColor": "#40101040", "scrollTextColor": "#404000",
+    })
+end function
+
+UI._draw_nav = function(setup)
+    activeName = setup.activeName
+    activeSuffix = setup.activeSuffix
+    nameOrder = setup.nameOrder
+    activeMarkColor = setup.activeMarkColor
+    activeTextColor = setup.activeTextColor
+    activeSuffixColor = setup.activeSuffixColor
+    inactiveMarkColor = setup.inactiveMarkColor
+    inactiveTextColor = setup.inactiveTextColor
+    scrollMarkColor = setup.scrollMarkColor
+    scrollTextColor = setup.scrollTextColor
+
+    apIdx = 0
+    pnNavBits = []
+    pnNavLen = []
+    for idx in nameOrder.indexes
+        pn = nameOrder[idx]
+        if pn == activeName then
+            apIdx = idx
+            s1 = "[" + idx + "] " + pn + " "
+            pnLen = s1.len + activeSuffix.len + 2
+            // Highlight current position
+            // TODO make these configurable.
+            pnBit = " <mark=" + activeMarkColor + "><color=" + activeTextColor + ">" + s1 + "</color><color=" + activeSuffixColor + ">" + activeSuffix + "</color></mark> "
+        else
+            s1 = "(" + idx + ") " + pn
+            pnLen = s1.len
+            // TODO make these configurable.
+            pnBit = " <mark=" + inactiveMarkColor + "><color=" + inactiveTextColor + ">" + s1 + "</color></mark> "
+        end if
+        pnNavBits.push(pnBit)
+        pnNavLen.push(pnLen)
+    end for
+    // We now have the full page status bar.  However, it may be too long.
+    ret = pnNavBits[apIdx]
+    total = pnNavLen[apIdx]
+    doLeft = true
+    markedRightEnd = false
+    doRight = true
+    markedLeftEnd = false
+    // Expand out left & right until we hit the edges or max width.
+    subIdx = 1
+    while doLeft and doRight and total < self.Width
+        if doRight and apIdx + subIdx < pnNavBits.len then
+            // Add to the right side.
+            if total + pnNavLen[apIdx + subIdx] > self.Width then
+                if not markedRightEnd then
+                    ret = ret + " <mark=" + scrollMarkColor + "><color=" + scrollTextColor + ">&gt;&gt;</color></color>"
+                end if
+                markedRightEnd = true
+                doRight = false
+            else
+                ret = ret + pnNavBits[apIdx + subIdx]
+                total = total + pnNavLen[apIdx + subIdx]
+            end if
+        else
+            doRight = false
+        end if
+        if doLeft and apIdx - subIdx >= 0 then
+            // Add to the left side.
+            if total + pnNavLen[apIdx - subIdx] > self.Width then
+                if not markedLeftEnd then
+                    ret = " <mark=" + scrollMarkColor + "><color=" + scrollTextColor + ">&lt;&lt;</color></color> " + ret
+                end if
+                markedLeftEnd = true
+                doLeft = false
+            else
+                ret = pnNavBits[apIdx - subIdx] + ret
+                total = total + pnNavLen[apIdx - subIdx]
+            end if
+        else
+            doLeft = false
+        end if
+        subIdx = subIdx + 1
+    end while
+    return ret
 end function
 
 UI._draw_separator = function(header, counterStart = null, counterTotal = null)
@@ -71,15 +213,17 @@ UI._draw_separator = function(header, counterStart = null, counterTotal = null)
     tail = header.len
     if tail + 1 > self.Width then tail = self.Width - 2
     ret = ret + header[:tail] + "</color>"
-    if counterStart != null then
-        ret = ret + "<color=" + self.SepCountColor + ">" + counterStart + "</color>"
+    if counterStart != null and counterTotal != null then
+        cs = str(counterStart)
+        ct = str(counterTotal)
+        tail = tail + cs.len + ct.len + 6
+        ret = ret + " <color=" + self.SepCountColor + ">(" + cs + " / " + ct + ")</color>"
     end if
-    if counterTotal != null then
-        ret = ret + "<color=" + self.SepCountColor + "> / " + counterTotal + "</color>"
-    end if
+    tail = tail + 1
     ret = ret + "<color=" + self.SepColor + ">" + " "
-    while ret.len < self.Width
+    while tail < self.Width
         ret = ret + self.LineSep
+        tail = tail + self.LineSep.len
     end while
     return ret + "</color>"
 end function
@@ -87,10 +231,10 @@ end function
 UI._draw_prompt = function(session)
     ret = []
     if session.Env.hasIndex("PROMPT") then
-        params = {} + session.Env + session
+        vars = {} + session.Env + session
         // To be accurate, this should include limiting the prompt to the Width.
         for line in self._split_lines(session.Env.PROMPT)
-            ret.push(FormatStr.PyFormat(line, params))
+            ret.push(FormatStr.PyFormat(line, vars))
         end for
     end if
     if ret.len <= 0 then
@@ -130,11 +274,11 @@ end function
 
 UI._draw_page = function(context, rowCount)
     ret = []
-    if not context.PagesMeta[context.ActivePage].hasIndex("PagesStart") then
-        context.PagesMeta[context.ActivePage].PagesStart = 0
+    if not context.PagesMeta[context.ActivePage].hasIndex("PagesEnd") then
+        context.PagesMeta[context.ActivePage].PagesEnd = 0
     end if
-    start = context.PagesMeta[context.ActivePage].PagesStart
-    rows = ContextLib.Page(context, context.ActivePage, start, rowCount)
+    tail = context.PagesMeta[context.ActivePage].PagesEnd
+    rows = ContextLib.TailPage(context, context.ActivePage, tail, rowCount)
     if rows != null then
         if context.PagesMeta.hasIndex(context.ActivePage) then
             metadata = context.PagesMeta[context.ActivePage]
@@ -220,7 +364,7 @@ UI._get_ordered_fields = function(fieldMetadata)
     for key in fieldMetadata.indexes
         field = fieldMetadata[key]
         if field.hasIndex("Order") then
-            color = "#808080"
+            color = self.DefaultFieldColor
             if field.hasIndex("Color") then color = @field.Color
             text = null
             if field.hasIndex("Text") then text = @field.Text

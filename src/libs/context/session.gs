@@ -50,12 +50,14 @@ ContextLib.AddSession = function(context, name, ipAddress, port, user, password,
         "Cwd": "/home/" + user,
         "CwdR": "~",
         "CwdN": "~",
+        "DirStack": [],
         "OnLogout": null,
         "OnLogoutPost": null,
         "OnLogin": null,
         "OnCmd": null,
         "OnCmdPost": null,
         "Parent": source.name,
+        // Should env be inherited?
         "Env": {},
     }
     context.NamedSessions[name] = ret
@@ -65,6 +67,7 @@ ContextLib.AddSession = function(context, name, ipAddress, port, user, password,
             "user": shell.user,
         })
     end if
+    context.NamedSessionsOrder.push(name)
     return ret
 end function
 
@@ -138,4 +141,20 @@ ContextLib.SessionLogout = function(context, name=null)
         return true
     end if
     return false
+end function
+
+// CloseSession() Close the given session.  Logs out if necessary.
+ContextLib.CloseSession = function(context, name=null)
+    if context == null or not context isa map or not context.hasIndex("NamedSessions") then return null
+    if name == null then name = context.CurrentSessionName
+    if context.NamedSessions.hasIndex(name) then
+        ContextLib.SessionLogout(context, name)
+        context.NamedSessions.remove(name)
+        for idx in context.NamedSessionsOrder.indexes
+            if context.NamedSessionsOrder[idx] == name then
+                context.NamedSessionsOrder.remove(idx)
+                break
+            end if
+        end for
+    end if
 end function

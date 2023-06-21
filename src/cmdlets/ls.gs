@@ -22,11 +22,12 @@ Ls__FilenameColor = function(row)
 end function
 
 Ls.Run = function(context, args, session)
-    if args.GetNamed("h") or args.GetNamed("--help") then
+    if args.GetNamed("h") or args.GetNamed("help") then
         ContextLib.Log("warning", "ls - List files.")
         ContextLib.Log("info", "")
-        ContextLib.Log("info", "Usage: ls [-F] [-a] [-A] [-d] [file] [file] ...")
+        ContextLib.Log("info", "Usage: ls [-c] [-F] [-a] [-A] [-d] [file] [file] ...")
         ContextLib.Log("info", "")
+        ContextLib.Log("info", "-c  Clear the page first")
         ContextLib.Log("info", "-F  Suffix directory names with '/'")
         ContextLib.Log("info", "-a  Show hidden files")
         ContextLib.Log("info", "-A  Show hidden files except the current and parent directories")
@@ -54,7 +55,7 @@ Ls.Run = function(context, args, session)
                 "Color": "#808080",
                 "Width": 10,
             },
-            // Not showing hard link count
+            // No hard link count
             "owner": {
                 "Order": 2,
                 "Color": "#808080",
@@ -70,11 +71,11 @@ Ls.Run = function(context, args, session)
                 "Color": "#808080",
                 "Width": 10, // 1 gb
             },
-            // No time display
+            // No file time
             "name": {
                 "Description": "Filename without the path",
                 "Order": 5,
-                "Color": "#909090", // @Ls__FilenameColor,
+                "Color": "#90a0a0", // @Ls__FilenameColor,
             },
             "path": {
                 "Description": "Filename with the path",
@@ -88,6 +89,7 @@ Ls.Run = function(context, args, session)
     hidden = false
     pdirs = false
     deepdirs = true
+    nonFlagCount = 0
     for arg in args.Ordered
         if arg.Name != null then
             if arg.Name.indexOf("F") != null then
@@ -104,12 +106,17 @@ Ls.Run = function(context, args, session)
             if arg.Name.indexOf("d") != null then
                 deepdirs = false
             end if
+            if arg.Name.indexOf("c") != null then
+                ContextLib.ClearPage(Ls.PageName)
+            end if
+        else
+            nonFlagCount = nonFlagCount + 1
         end if
     end for
 
-    if args.Empty then
+    if nonFlagCount <= 0 then
         // A shorthand...
-        args.Ordered.push({"Value": "*", "Name": null, "Command": null, "Original": ""})
+        args.Ordered.push({"Value": ".", "Name": null, "Command": null, "Original": ""})
     end if
 
     show_file = function(f)
@@ -137,8 +144,12 @@ Ls.Run = function(context, args, session)
 
     for match in FileLib.Expand.ExpandFiles(args.Ordered, session.Computer, session.Home, session.Cwd)
         f = match.File
+        // TODO support pdirs
         if f == null then
             context.Errors.push(ErrorLib.Error.New("No such file: '{name}'", {"name": match.Value}))
+        else if not hidden and f.name[0] == "." then
+            // Don't show hidden files
+            continue
         else if f.is_folder then
             if deepdirs then
                 // Show all the contents of the folder.

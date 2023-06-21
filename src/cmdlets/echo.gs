@@ -10,7 +10,7 @@ import_code("../libs/format/formatted-str.gs")
 Echo = {}
 
 Echo.Run = function(context, args)
-    if args.GetNamed("h") or args.GetNamed("--help") then
+    if args.GetNamed("h") or args.GetNamed("help") then
         ContextLib.Log("warning", "echo - Send output to a page.")
         ContextLib.Log("info", "")
         ContextLib.Log("info", "Usage: echo [--page=(page name) --key=value ...] | [text]")

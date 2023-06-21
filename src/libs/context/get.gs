@@ -10,9 +10,11 @@ ContextLib = globals.ContextLib
 ContextLib.Get = function()
     ret = get_custom_object
     if not ret.hasIndex("Pages") then ret.Pages = {}
-    if not ret.hasIndex("PagesMeta") then ret.PagesMeta = {"default": "(none)"}
+    if not ret.hasIndex("PagesMeta") then ret.PagesMeta = {}
+    if not ret.hasIndex("PagesOrder") then ret.PagesOrder = []
     if not ret.hasIndex("Errors") then ret.Errors = []
     if not ret.hasIndex("NamedSessions") then ret.NamedSessions = {}
+    if not ret.hasIndex("NamedSessionsOrder") then ret.NamedSessionsOrder = []
     if not ret.NamedSessions.hasIndex("local") then
         ret.NamedSessions.local = {
             "Name": "local",
@@ -25,6 +27,7 @@ ContextLib.Get = function()
             "Cwd": home_dir,
             "CwdR": "~",
             "CwdN": "~",
+            "DirStack": [],
             "OnLogout": null,
             "OnLogoutPost": null,
             "OnLogin": null,
@@ -33,6 +36,7 @@ ContextLib.Get = function()
             "Parent": null,
             "Env": {},
         }
+        ret.NamedSessionsOrder.push("local")
     end if
     if not ret.hasIndex("CurrentSessionName") then ret.CurrentSessionName = "local"
     return ret

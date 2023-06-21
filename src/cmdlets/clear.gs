@@ -11,7 +11,7 @@ import_code("../libs/format/formatted-str.gs")
 Clear = {}
 
 Clear.Run = function(context, args)
-    if args.GetNamed("h") or args.GetNamed("--help") then
+    if args.GetNamed("h") or args.GetNamed("help") then
         ContextLib.Log("warning", "clear - Clears out pages.")
         ContextLib.Log("info", "")
         ContextLib.Log("info", "Usage: clear [--errors] [page [page ...]]")

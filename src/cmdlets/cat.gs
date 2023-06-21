@@ -15,7 +15,7 @@ import_code("../libs/files/expand-args.gs")
 Cat = {}
 
 Cat.Run = function(context, args, session)
-    if args.GetNamed("h") or args.GetNamed("--help") or args.Empty then
+    if args.GetNamed("h") or args.GetNamed("help") or args.Empty then
         ContextLib.Log("warning", "cat - Reads files and outputs to a page.")
         ContextLib.Log("info", "")
         ContextLib.Log("info", "Usage: cat [--page=name] file1 file2 ...")

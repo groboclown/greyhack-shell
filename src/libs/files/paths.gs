@@ -20,6 +20,7 @@ FileLib.Paths = {
 // If the path is already absolute, the returned path will have "/" as the
 // first path element.  Multiple "/" in a row are concatenated into one "/".
 FileLib.Paths.SplitPath = function(path)
+    if path == null then return []
     ret = []
     start = 0
     pos = 0

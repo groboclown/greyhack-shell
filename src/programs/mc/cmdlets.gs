@@ -19,9 +19,9 @@ CmdletManager.New = function()
 end function
 
 CmdletManager.LoadConfig = function(section)
-    // self.Aliases
-    self.CmdletPaths = section.StrList("cmdlet-dir", self.CmdletPaths)
-    self.BinPaths = section.StrList("bin-dir", self.BinPaths)
+    self.Aliases = section.StrMap("aliases", self.Aliases)
+    self.CmdletPaths = section.StrList("cmdlet-path", self.CmdletPaths)
+    self.BinPaths = section.StrList("bin-path", self.BinPaths)
     self.SrcDir = section.Str("src-dir", self.SrcDir)
 end function
 
@@ -84,7 +84,9 @@ CmdletManager.mkLaunchArgs = function(cmd, session)
                     ret.push(item.Value)
                 end if
             end for
-        else
+        // Ignore arguments that can't be used as a launch argument.
+        // An argument like "{name}" generates the error "Invalid character '{' in program parameters"
+        else if val.indexOf("{") == null then
             ret.push(val)
         end if
     end for
