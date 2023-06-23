@@ -11,26 +11,19 @@
         "$width": 100,
         "$height": 30,
         "$error-height": 4,
-        "$column-separator": "  ",
-        "$line-separator-char": "=",
-        "$column-separator-color": "#203060",
-        "$default-field-color": "#808080",
+        "$column-separator": { "text": "  ", "color": "#000000" },
+        "$line-separator": { "text": "=", "color": "#203060" },
+        "$default-field-style": { "color": "#808080" },
     
-        "page-active-bg":         "#a0a0a040",
-        "page-active-color":      "#a0a0a0",
-        "page-suffix-color":      "#1010ff",
-        "page-inactive-bg":       "#3030a040",
-        "page-inactive-color":    "#20ffff",
-        "page-scroll-bg":         "#10102038",
-        "page-scroll-color":      "#404000",
+        "page-active-style":      { "c": "#a0a0a0", "bg": "#a0a0a040" },
+        "page-suffix-style":      { "c": "#1010ff" },
+        "page-inactive-style":    { "c": "#20ffff", "bg": "#3030a040" },
+        "page-scroll-style":      { "c": "#404000", "bg": "#10102038" },
 
-        "session-active-bg":      "#20300040",
-        "session-active-color":   "#a0a0a0",
-        "session-suffix-color":   "#101060",
-        "session-inactive-bg":    "#10102038",
-        "session-inactive-color": "#20d0d0",
-        "session-scroll-bg":      "#10102038",
-        "session-scroll-color":   "#404000"
+        "session-active-style":   { "c": "#a0a0a0", "bg": "#20300040" },
+        "session-suffix-style":   { "c": "#101060" },
+        "session-inactive-style": { "c": "#20d0d0", "bg": "#10102038" },
+        "session-scroll-style":   { "c": "#404000", "bg": "#10102038" }
     },
     "cmdlets": {
         "$comments": [

@@ -16,7 +16,7 @@ ContextLib.Console = {
     "_style_idx": ["c", "bg", "u", "s", "b", "i"],
 }
 
-// SplitLines() Split the text into multiple lines based on console width.
+// SplitStyledLines() Split the text into multiple, styled lines based on console width.
 //
 // There are a lot of potential fancy character things:
 // http://digitalnativestudios.com/textmeshpro/docs/rich-text/
@@ -36,7 +36,7 @@ ContextLib.Console = {
 //   s - strikethrough, set to either true or false.
 //   b - bold, set to either true or false.
 //   i - italics, set to either true or false.
-ContextLib.Console.SplitLines = function(text, consoleWidth=null)
+ContextLib.Console.SplitStyledLines = function(text, consoleWidth=null)
     if consoleWidth == null then consoleWidth = self.Width
     if text isa string then text = [text]
     if not text isa list or consoleWidth <= 0 then return []
@@ -67,7 +67,7 @@ ContextLib.Console.SplitLines = function(text, consoleWidth=null)
         // then there's no text, and there's nothing to display.
         if bit isa string or bit isa number then
             firstLine = true
-            for sub in str(bit).split(_regex_linesplit)
+            for sbit in ContextLib.Console.SplitLineFeeds(str(bit))
                 // It would be nice if this also split on words...
                 while sbit.len > 0
                     if firstLine then
@@ -119,12 +119,18 @@ end function
 // or Width == "0", then the column is made not visible.
 ContextLib.Console.ComputeColumnWidth = function(columns, columnSeparator, consoleWidth=null)
     if consoleWidth == null then consoleWidth = self.Width
-    if not columns isa list or consoleWidth <= 0 then return
+    if not columns isa list or consoleWidth <= 0 then
+        print("Console width <= 0 " + consoleWidth + " or columns is not a list " + columns)
+        return
+    end if
     // Cache check; this also implicitly returns early if there are no columns.
     is_cached = true
     for col in columns
         // Check for valid input first.
-        if not col isa map then return
+        if not col isa map then
+            print("ERROR BAD COLUMN")
+            return
+        end if
         if not col.hasIndex("ComputedWidth") or not col.hasIndex("ConsoleWidth") or col.ConsoleWidth != consoleWidth then
             is_cached = false
             break
@@ -222,4 +228,11 @@ ContextLib.Console.PullStyle = function(data, textKey, style)
         end if
     end for
     return ret
+end function
+
+// SplitLineFeeds() Splits text into multiple lines based on \n and char(10).
+// Designed mostly around users passing in explicit "\n" text to turn into
+// line feeds.
+ContextLib.Console.SplitLineFeeds = function(text)
+    return text.split(self._regex_linesplit)
 end function

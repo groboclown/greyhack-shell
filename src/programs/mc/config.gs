@@ -125,3 +125,54 @@ MCConfig.sec.StrMap = function(key, defaultValue)
     end if
     return defaultValue
 end function
+
+// A console Style map from a configuration.
+MCConfig.sec.StyleMap = function(key, defaultValue)
+    if self.cfg.hasIndex(key) then
+        cfgMap = self.cfg[key]
+        if cfgMap isa map then
+            mapRes = {}
+            if cfgMap.hasIndex("color") and cfgMap.color isa string then mapRes.c = cfgMap.color
+            if cfgMap.hasIndex("c") and cfgMap.c isa string then mapRes.c = cfgMap.c
+            if cfgMap.hasIndex("background") and cfgMap.background isa string then mapRes.bg = cfgMap.background
+            if cfgMap.hasIndex("bg") and cfgMap.bg isa string then mapRes.bg = cfgMap.bg
+            if cfgMap.hasIndex("underline") and cfgMap.underline isa number then mapRes.u = cfgMap.underline
+            if cfgMap.hasIndex("u") and cfgMap.u isa number then mapRes.u = cfgMap.u
+            if cfgMap.hasIndex("bold") and cfgMap.bold isa number then mapRes.b = cfgMap.bold
+            if cfgMap.hasIndex("b") and cfgMap.b isa number then mapRes.b = cfgMap.b
+            if cfgMap.hasIndex("italics") and cfgMap.italics isa number then mapRes.i = cfgMap.italics
+            if cfgMap.hasIndex("i") and cfgMap.i isa number then mapRes.i = cfgMap.i
+            if cfgMap.hasIndex("strikethrough") and cfgMap.strikethrough isa number then mapRes.s = cfgMap.strikethrough
+            if cfgMap.hasIndex("s") and cfgMap.s isa number then mapRes.s = cfgMap.s
+            return mapRes
+        end if
+    end if
+    return defaultValue
+end function
+
+// A console Style map + text from a configuration.
+MCConfig.sec.StyledTextMap = function(key, defaultValue)
+    if self.cfg.hasIndex(key) then
+        cfgMap = self.cfg[key]
+        if cfgMap isa string then return { "t": cfgMap }
+        if cfgMap isa map then
+            mapRes = {}
+            if cfgMap.hasIndex("text") and (cfgMap.text isa string or cfgMap.text isa number) then mapRes.t = cfgMap.text
+            if cfgMap.hasIndex("t") and (cfgMap.t isa string or cfgMap.t isa number) isa string then mapRes.t = cfgMap.t
+            if cfgMap.hasIndex("color") and cfgMap.color isa string then mapRes.c = cfgMap.color
+            if cfgMap.hasIndex("c") and cfgMap.c isa string then mapRes.c = cfgMap.c
+            if cfgMap.hasIndex("background") and cfgMap.background isa string then mapRes.bg = cfgMap.background
+            if cfgMap.hasIndex("bg") and cfgMap.bg isa string then mapRes.bg = cfgMap.bg
+            if cfgMap.hasIndex("underline") and cfgMap.underline isa number then mapRes.u = cfgMap.underline
+            if cfgMap.hasIndex("u") and cfgMap.u isa number then mapRes.u = cfgMap.u
+            if cfgMap.hasIndex("bold") and cfgMap.bold isa number then mapRes.b = cfgMap.bold
+            if cfgMap.hasIndex("b") and cfgMap.b isa number then mapRes.b = cfgMap.b
+            if cfgMap.hasIndex("italics") and cfgMap.italics isa number then mapRes.i = cfgMap.italics
+            if cfgMap.hasIndex("i") and cfgMap.i isa number then mapRes.i = cfgMap.i
+            if cfgMap.hasIndex("strikethrough") and cfgMap.strikethrough isa number then mapRes.s = cfgMap.strikethrough
+            if cfgMap.hasIndex("s") and cfgMap.s isa number then mapRes.s = cfgMap.s
+            return mapRes
+        end if
+    end if
+    return defaultValue
+end function

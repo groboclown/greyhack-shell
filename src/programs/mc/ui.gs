@@ -5,13 +5,12 @@
 // import_code("../../libs/context/logs.gs")
 // import_code("../../libs/format/formatted-str.gs")
 // import_code("../../libs/std-lib/sort.gs")
+// import_code("../../libs/context/console.gs")
 
 UI = {}
 
 UI.New = function()
     ret = new UI
-    ret.Width = 100
-    ret.Height = 30
     ret.ErrorHeight = 4
     // There's N lines for the prompt context and 1 line for the prompt itself.
     // page height is Height - 1 - PromptContext lines - ErrorHeight
@@ -28,63 +27,49 @@ UI.New = function()
             "Text": {
                 "Description": "Human readable error message",
                 "Order": 1,
-                "Color": "#808080",
+                "Style": { "c": "#808080", "b": true },
             },
         },
     }
-    ret.ColSep = "  "
-    ret.LineSep = "="
-    ret.SepColor = "#202040"
-    ret.SepHeadColor = "#202060"
-    ret.SepCountColor = "#203060"
-    ret.DefaultFieldColor = "#808080"
+    ret.ColSep = { "t": "  " }
+    ret.LineSep = { "t": "=", "c": "#202040" }
+    ret.SepHeadStyle = { "c": "#202060" }
+    ret.SepCountStyle = { "c": "#203060" }
+    ret.DefaultFieldStyle = { "c": "#808080" }
 
-    ret.PageActiveBG = "#20300040"
-    ret.PageActiveColor = "#a0a0a0"
-    ret.PageSuffixColor = "#101060"
-    ret.PageInactiveBG = "#10102038"
-    ret.PageInactiveColor = "#20d0d0"
-    ret.PageScrollBG = "#10102038"
-    ret.PageScrollColor = "#404000"
+    ret.PageActiveStyle = { "bg": "#20300040", "c": "#a0a0a0" }
+    ret.PageSuffixStyle = { "c": "#101060" }
+    ret.PageInactiveStyle = { "bg": "#10102038", "c": "#20d0d0" }
+    ret.PageScrollStyle = { "bg": "#10102038", "c": "#404000" }
 
-    ret.SessionActiveBG = "#20300040"
-    ret.SessionActiveColor = "#a0a0a0"
-    ret.SessionSuffixColor = "#101060"
-    ret.SessionInactiveBG = "#10102038"
-    ret.SessionInactiveColor = "#20d0d0"
-    ret.SessionScrollBG = "#10102038"
-    ret.SessionScrollColor = "#404000"
+    ret.SessionActiveStyle = { "bg": "#20300040", "c": "#a0a0a0" }
+    ret.SessionSuffixStyle = { "c": "#101060" }
+    ret.SessionInactiveStyle = { "bg": "#10102038", "c": "#20d0d0" }
+    ret.SessionScrollStyle = { "bg": "#10102038", "c": "#404000" }
 
     return ret
 end function
 
 // LoadConfig() Load the configuration from a JSON section.
 UI.LoadConfig = function(section)
-    self.Width = section.Int("width", self.Width)
-    self.Height = section.Int("height", self.Height)
+    ContextLib.Console.Width = section.Int("width", ContextLib.Console.Width)
+    ContextLib.Console.Height = section.Int("height", ContextLib.Console.Height)
     self.ErrorHeight = section.Int("error-height", self.ErrorHeight)
-    self.ColSep = section.Str("column-separator", self.ColSep)
-    self.LineSep = section.Str("line-separator-char", self.LineSep)
-    self.SepColor = section.Str("column-separator-color", self.SepColor)
-    // SepHeadColor
-    // SepCountColor
-    self.DefaultFieldColor = section.Str("default-field-color", self.DefaultFieldColor)
+    self.ColSep = section.StyledTextMap("column-separator", self.ColSep)
+    self.LineSep = section.StyledTextMap("line-separator-char", self.LineSep)
+    self.SepHeadStyle = section.StyleMap("line-separator-header-style", self.SepHeadStyle)
+    self.SepCountStyle = section.StyleMap("line-separator-count-style", self.SepCountStyle)
+    self.DefaultFieldStyle = section.StyleMap("default-field-style", self.DefaultFieldStyle)
 
-    self.PageActiveBG      = section.Str("page-active-bg",      self.PageActiveBG)
-    self.PageActiveColor   = section.Str("page-active-color",   self.PageActiveColor)
-    self.PageSuffixColor   = section.Str("page-suffix-color",   self.PageSuffixColor)
-    self.PageInactiveBG    = section.Str("page-inactive-bg",    self.PageInactiveBG)
-    self.PageInactiveColor = section.Str("page-inactive-color", self.PageInactiveColor)
-    self.PageScrollBG      = section.Str("page-scroll-bg",      self.PageScrollBG)
-    self.PageScrollColor   = section.Str("page-scroll-color",   self.PageScrollColor)
+    self.PageActiveStyle   = section.StyleMap("page-active-style",   self.PageActiveStyle)
+    self.PageSuffixStyle   = section.StyleMap("page-suffix-style",   self.PageSuffixStyle)
+    self.PageInactiveStyle = section.StyleMap("page-inactive-style", self.PageInactiveStyle)
+    self.PageScrollStyle   = section.StyleMap("page-scroll-style",   self.PageScrollStyle)
 
-    self.SessionActiveBG      = section.Str("session-active-bg",      self.SessionActiveBG)
-    self.SessionActiveColor   = section.Str("session-active-color",   self.SessionActiveColor)
-    self.SessionSuffixColor   = section.Str("session-suffix-color",   self.SessionSuffixColor)
-    self.SessionInactiveBG    = section.Str("session-inactive-bg",    self.SessionInactiveBG)
-    self.SessionInactiveColor = section.Str("session-inactive-color", self.SessionInactiveColor)
-    self.SessionScrollBG      = section.Str("session-scroll-bg",      self.SessionScrollBG)
-    self.SessionScrollColor   = section.Str("session-scroll-color",   self.SessionScrollColor)
+    self.SessionActiveStyle   = section.StyleMap("session-active-style",   self.SessionActiveStyle)
+    self.SessionSuffixStyle   = section.StyleMap("session-suffix-style",   self.SessionSuffixStyle)
+    self.SessionInactiveStyle = section.StyleMap("session-inactive-style", self.SessionInactiveStyle)
+    self.SessionScrollStyle   = section.StyleMap("session-scroll-style",   self.SessionScrollStyle)
 end function
 
 // Draw() Returns two strings, the whole screen, and the prompt.
@@ -92,7 +77,7 @@ UI.Draw = function(context, session)
     // Get the prompt first, so we know how many lines to reserve at the bottom.
     promptLines = self._draw_prompt(session)
     errors = self._draw_errors(context)
-    page = self._draw_page(context, self.Height - promptLines.len - errors.len - 2)
+    page = self._draw_page(context, ContextLib.Console.Height - promptLines.len - errors.len - 2)
     prompt = promptLines[-1]
     // TODO should include possible line number position (current / total)
     screen = (
@@ -113,9 +98,9 @@ UI._draw_page_nav = function(context)
     return self._draw_nav({
         "activeName": ap, "activeSuffix": suffix,
         "nameOrder": context.PagesOrder,
-        "activeMarkColor": self.PageActiveBG, "activeTextColor": self.PageActiveColor, "activeSuffixColor": self.PageSuffixColor,
-        "inactiveMarkColor": self.PageInactiveBG, "inactiveTextColor": self.PageInactiveColor,
-        "scrollMarkColor": self.PageScrollBG, "scrollTextColor": self.PageScrollColor,
+        "activeStyle": self.PageActiveStyle, "activeSuffixStyle": self.PageSuffixStyle,
+        "inactiveStyle": self.PageInactiveStyle,
+        "scrollStyle": self.PageScrollStyle,
     })
 end function
 
@@ -123,9 +108,9 @@ UI._draw_session_nav = function(context)
     return self._draw_nav({
         "activeName": context.CurrentSessionName, "activeSuffix": "",
         "nameOrder": context.NamedSessionsOrder,
-        "activeMarkColor": "#ffff0040", "activeTextColor": "#101010", "activeSuffixColor": "#303030",
-        "inactiveMarkColor": "#40101040", "inactiveTextColor": "#20d0d0",
-        "scrollMarkColor": "#40101040", "scrollTextColor": "#404000",
+        "activeStyle": self.SessionActiveStyle, "activeSuffixStyle": self.SessionSuffixStyle,
+        "inactiveStyle": self.SessionInactiveStyle,
+        "scrollStyle": self.SessionScrollStyle,
     })
 end function
 
@@ -133,160 +118,137 @@ UI._draw_nav = function(setup)
     activeName = setup.activeName
     activeSuffix = setup.activeSuffix
     nameOrder = setup.nameOrder
-    activeMarkColor = setup.activeMarkColor
-    activeTextColor = setup.activeTextColor
-    activeSuffixColor = setup.activeSuffixColor
-    inactiveMarkColor = setup.inactiveMarkColor
-    inactiveTextColor = setup.inactiveTextColor
-    scrollMarkColor = setup.scrollMarkColor
-    scrollTextColor = setup.scrollTextColor
+    activeStyle = setup.activeStyle
+    activeSuffixStyle = setup.activeSuffixStyle
+    inactiveStyle = setup.inactiveStyle
+    scrollStyle = setup.scrollStyle
 
-    apIdx = 0
-    pnNavBits = []
-    pnNavLen = []
+    // Create cells that will be drawn to the console.
+    // One cell per item.
+    cells = []
+    cellsLen = []
+    cellsLenTotal = 0
+    activeIndex = 0
+    activeSuffixIndex = 0
     for idx in nameOrder.indexes
-        pn = nameOrder[idx]
-        if pn == activeName then
-            apIdx = idx
-            s1 = "[" + idx + "] " + pn + " "
-            pnLen = s1.len + activeSuffix.len + 2
-            // Highlight current position
-            // TODO make these configurable.
-            pnBit = " <mark=" + activeMarkColor + "><color=" + activeTextColor + ">" + s1 + "</color><color=" + activeSuffixColor + ">" + activeSuffix + "</color></mark> "
+        name = nameOrder[idx]
+        if name == activeName then
+            s1 = " [" + idx + "] " + name + " "
+            activeIndex = cells.len
+            cellsLen.push(s1.len)
+            cellsLenTotal = cellsLenTotal + s1.len
+            cells.push(ContextLib.Console.ApplyStyle(s1, activeStyle))
+
+            activeSuffixIndex = cells.len
+            cellsLen.push(activeSuffix.len + 1)
+            cellsLenTotal = cellsLenTotal + activeSuffix.len + 1
+            cells.push(ContextLib.Console.ApplyStyle(activeSuffix + " ", activeSuffixStyle))
         else
-            s1 = "(" + idx + ") " + pn
-            pnLen = s1.len
-            // TODO make these configurable.
-            pnBit = " <mark=" + inactiveMarkColor + "><color=" + inactiveTextColor + ">" + s1 + "</color></mark> "
+            s1 = " (" + idx + ") " + name + " "
+            cellsLen.push(s1.len)
+            cellsLenTotal = cellsLenTotal + s1.len
+            cells.push(ContextLib.Console.ApplyStyle(s1, inactiveStyle))
         end if
-        pnNavBits.push(pnBit)
-        pnNavLen.push(pnLen)
     end for
+
     // We now have the full page status bar.  However, it may be too long.
-    ret = pnNavBits[apIdx]
-    total = pnNavLen[apIdx]
-    doLeft = true
-    markedRightEnd = false
-    doRight = true
-    markedLeftEnd = false
-    // Expand out left & right until we hit the edges or max width.
-    subIdx = 1
-    while doLeft and doRight and total < self.Width
-        if doRight and apIdx + subIdx < pnNavBits.len then
-            // Add to the right side.
-            if total + pnNavLen[apIdx + subIdx] > self.Width then
-                if not markedRightEnd then
-                    ret = ret + " <mark=" + scrollMarkColor + "><color=" + scrollTextColor + ">&gt;&gt;</color></color>"
-                end if
-                markedRightEnd = true
-                doRight = false
-            else
-                ret = ret + pnNavBits[apIdx + subIdx]
-                total = total + pnNavLen[apIdx + subIdx]
-            end if
+    while cellsLenTotal > ContextLib.Console.Width
+        if activeIndex > 0 then
+            cellsLenTotal = cellsLenTotal - cellsLen[0]
+            cells.pull()
+            cellsLen.pull()
+        else if activeSuffixIndex + 1 < cells.len then
+            cellsLenTotal = cellsLenTotal - cellsLen[cellsLen.len - 1]
+            cells.pop()
+            cellsLen.pop()
         else
-            doRight = false
+            // There's only one item, and it's too long.  Just deal with it.
+            break
         end if
-        if doLeft and apIdx - subIdx >= 0 then
-            // Add to the left side.
-            if total + pnNavLen[apIdx - subIdx] > self.Width then
-                if not markedLeftEnd then
-                    ret = " <mark=" + scrollMarkColor + "><color=" + scrollTextColor + ">&lt;&lt;</color></color> " + ret
-                end if
-                markedLeftEnd = true
-                doLeft = false
-            else
-                ret = pnNavBits[apIdx - subIdx] + ret
-                total = total + pnNavLen[apIdx - subIdx]
-            end if
-        else
-            doLeft = false
-        end if
-        subIdx = subIdx + 1
     end while
-    return ret
+    // Split it into lines, and return the top line.
+    lines = ContextLib.Console.SplitStyledLines(cells)
+    return lines[0]
 end function
 
 UI._draw_separator = function(header, counterStart = null, counterTotal = null)
-    ret = "<color=" + self.SepHeadColor + ">"
-    tail = header.len
-    if tail + 1 > self.Width then tail = self.Width - 2
-    ret = ret + header[:tail] + "</color>"
+    cells = [ContextLib.Console.ApplyStyle(header, self.SepHeadStyle)]
+    total = cells[0].t.len
     if counterStart != null and counterTotal != null then
         cs = str(counterStart)
         ct = str(counterTotal)
-        tail = tail + cs.len + ct.len + 6
-        ret = ret + " <color=" + self.SepCountColor + ">(" + cs + " / " + ct + ")</color>"
+        cells.push(ContextLib.Console.ApplyStyle("(" + cs + " / " + ct + ") ", self.SepCountStyle))
+        total = total + cells[1].t.len
     end if
-    tail = tail + 1
-    ret = ret + "<color=" + self.SepColor + ">" + " "
-    while tail < self.Width
-        ret = ret + self.LineSep
-        tail = tail + self.LineSep.len
+
+    lineSepLen = 0
+    if self.LineSep isa map then lineSepLen = self.LineSep.t.len
+    if self.LineSep isa string then lineSepLen = self.LineSep.len
+    while total < ContextLib.Console.Width
+        cells.push(self.LineSep)
+        total = total + lineSepLen
     end while
-    return ret + "</color>"
+    // Split it into lines, and return the top line.
+    lines = ContextLib.Console.SplitStyledLines(cells)
+    return lines[0]
 end function
 
 UI._draw_prompt = function(session)
+    // This uses the ENV prompt.
     ret = []
+
     if session.Env.hasIndex("PROMPT") then
         vars = {} + session.Env + session
         // To be accurate, this should include limiting the prompt to the Width.
-        for line in self._split_lines(session.Env.PROMPT)
+        // Doing so, though, requires re-parsing the styling, which we're just not going to do.
+        for line in ContextLib.Console.SplitLineFeeds(session.Env.PROMPT)
             ret.push(FormatStr.PyFormat(line, vars))
         end for
     end if
     if ret.len <= 0 then
         // Add the default prompt.
-        // Example of one: "PROMPT": "[{user}@{ip} {cwdn}]$ "
+        // Example of one: "PROMPT": "[{User}@{Ip} {CwdN}]$ "
         ret.push("$ ")
     end if
     return ret
 end function
 
 UI._draw_errors = function(context)
-    tail = context.Errors.len - self.ErrorEnd
-    start = tail - self.ErrorHeight
-    if start < 0 then
-        start = 0
-        tail = self.ErrorHeight
-        if tail > context.Errors.len then tail = context.Errors.len
-    end if
-    ret = []
-    if start < tail then
-        fields = self._get_ordered_fields(self.ErrorMetadata.Fields)
-        while start < tail
-            row = context.Errors[start]
-            if not row isa map then
-                // Something put a non-error object into the errors.  Tsk.
-                row = {"Text": FormatStr._as_str(row)}
-            end if
-            ret.push(self._draw_row(row, fields))
-            start = start + 1
-        end while
-    end if
-    while ret.len < self.ErrorHeight
-        ret.push("")
-    end while
-    return ret
+    return self._draw_row_set(
+        context.Errors,
+        self.ErrorMetadata,
+        self.ErrorHeight,
+        self.ErrorEnd)
 end function
 
 UI._draw_page = function(context, rowCount)
-    ret = []
     if not context.PagesMeta[context.ActivePage].hasIndex("PagesEnd") then
         context.PagesMeta[context.ActivePage].PagesEnd = 0
     end if
-    tail = context.PagesMeta[context.ActivePage].PagesEnd
-    rows = ContextLib.TailPage(context, context.ActivePage, tail, rowCount)
-    if rows != null then
-        if context.PagesMeta.hasIndex(context.ActivePage) then
-            metadata = context.PagesMeta[context.ActivePage]
-            fields = self._get_ordered_fields(metadata.Fields)
-            for row in rows
-                ret.push(self._draw_row(row, fields))
-            end for
-        end if
+    return self._draw_row_set(
+        context.Pages[context.ActivePage],
+        context.PagesMeta[context.ActivePage],
+        rowCount,
+        context.PagesMeta[context.ActivePage].PagesEnd)
+end function
+
+UI._draw_row_set = function(rows, metadata, rowCount, fromEnd)
+    if not metadata.hasIndex("_cached_fields") then
+        metadata._cached_fields = self._get_ordered_fields(metadata.Fields)
     end if
+    // In case the console width changed
+    ContextLib.Console.ComputeColumnWidth(metadata._cached_fields, self.ColSep.t)
+
+    rowLen = rows.len
+    endRow = rowLen - fromEnd
+    if endRow < rowCount then endRow = rowCount
+    idx = endRow - rowCount
+
+    ret = []
+    while idx < rowLen and idx < endRow
+        ret.push(self._draw_row(rows[idx], metadata._cached_fields))
+        idx = idx + 1
+    end while
     while ret.len < rowCount
         ret.push("")
     end while
@@ -294,30 +256,21 @@ UI._draw_page = function(context, rowCount)
 end function
 
 UI._draw_row = function(row, orderedFields)
-    ret = ""
+    cells = []
     first = true
-    col = 0
-    remaining = self.Width
     for field in orderedFields
         if first then
             first = false
-        else if self.ColSep.len < remaining then
-            ret = ret + self.ColSep
-            col = col + self.ColSep.len
-            remaining = remaining - self.ColSep.len
         else
-            remaining = 0
-            break
+            cells.push(self.ColSep)
         end if
-        if @field.Color isa funcRef then
-            color = field.Color(row)
-        else
-            color = field.Color
+        style = @field.Style
+        if @style isa funcRef then
+            style = style(row)
         end if
-        ret = ret + "<color=" + color + ">"
+
         val = "()"
         key = field.Name
-        // print(FormatStr.PyFormat("Getting field [{key}] from row [{row}]", {"key":key, "row":row}))
         if row.hasIndex(key) then
             val = row[key]
         end if
@@ -331,25 +284,17 @@ UI._draw_row = function(row, orderedFields)
         if not val isa string then
             val = FormatStr._as_str(val)
         end if
+        // Could have left/right justified, but it's just left right now.
+        while val.len < field.ComputedWidth
+            val = val + " "
+        end while
+        val = val[:field.ComputedWidth]
 
-        colWidth = field.Width
-        if colWidth > remaining then
-            colWidth = remaining
-        end if
-        remaining = remaining - colWidth
-        if colWidth < val.len then
-            ret = ret + val[0:colWidth]
-        else
-            ret = ret + val
-            colWidth = colWidth - val.len
-            while colWidth > 0
-                ret = ret + " "
-                colWidth = colWidth - 1
-            end while
-        end if
-        ret = ret + "</color>"
+        cells.push(ContextLib.Console.ApplyStyle(val, style))
     end for
-    return ret
+    // Split it into lines, and return the top line.
+    lines = ContextLib.Console.SplitStyledLines(cells)
+    return lines[0]
 end function
 
 // _get_ordered_fields() Get the visible, ordered field metadata.
@@ -357,14 +302,11 @@ UI._get_ordered_fields = function(fieldMetadata)
     // Needs a sort implementation.
     // Instead, we'll just assume that people know what they're doing.
     ret = []
-    fixedWidths = 0
-    hasFixedWidths = 0
-    needsWidth = []
     for key in fieldMetadata.indexes
         field = fieldMetadata[key]
         if field.hasIndex("Order") then
-            color = self.DefaultFieldColor
-            if field.hasIndex("Color") then color = @field.Color
+            style = self.DefaultFieldStyle
+            if field.hasIndex("Style") then style = @field.Style
             text = null
             if field.hasIndex("Text") then text = @field.Text
             width = null
@@ -372,66 +314,15 @@ UI._get_ordered_fields = function(fieldMetadata)
             // width would be fun.
             if field.hasIndex("Width") and field.Width isa number then
                 width = field.Width
-                // This looks like a fence-post error, but we make up this last
-                // column separator by adding it to the final remaining width.
-                fixedWidths = fixedWidths + width + self.ColSep.len
-                hasFixedWidths = 1
             end if
-            value = {"Name": key, "Color": @color, "Text": @text, "Width": width, "Order": field.Order}
+            value = {"Name": key, "Style": @style, "Text": @text, "Width": width, "Order": field.Order}
             ret.push(value)
-            if width == null then needsWidth.push(value)
         end if
     end for
-
-    // Calculate field width.
-    // This is done by spreading the remaining width amongst all
-    // the needs-width fields.
-    // Here's the counting method:
-    //   We have F columns taken up by the fixed width columns,
-    //     which includes the column separators between them and one the end,
-    //     but only if there's at least one fixed-column width field.
-    //   We have N columns that need width assigned.
-    //   We have W total columns to fill.
-    //   Between each column is B separator columns.
-    remainingWidth = self.Width - fixedWidths + (self.ColSep.len * hasFixedWidths)
-    if needsWidth.len > 0 then
-        // Spread the remaining width to the non-width columns.
-        perCol = floor((remainingWidth + self.ColSep.len) / needsWidth.len) - self.ColSep.len
-        for fw in needsWidth
-            fw.Width = perCol
-            remainingWidth = remainingWidth - perCol - self.ColSep.len
-        end for
-    end if
-
     StdLib.QuickSort(ret, @UI._field_sorter)
-
-    if remainingWidth > 0 and ret.len > 0 then
-        // Add the remaining width to the last field.
-        ret[-1].Width = ret[-1].Width + remainingWidth
-    end if
-    // If ret.len > 0 and remainingWidth <= 0 then don't do anything;
-    // the normal display choppy chop does the work for us.
     return ret
 end function
 
 UI._field_sorter = function(a, b)
     return a.Order - b.Order
-end function
-
-// _split_lines() Splits text into multiple lines.
-//
-// Assumes simple Unix line feeds (\n)
-UI._split_lines = function(text)
-    CR = char(10) // \n
-    lines = []
-    start = 0
-    for pos in text.indexes
-        c = text[pos]
-        if c == CR then
-            lines.push(text[start:pos])
-            start = pos + 1
-        end if
-    end for
-    if start < text.len then lines.push(text[start:])
-    return lines
 end function

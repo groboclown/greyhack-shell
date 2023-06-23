@@ -13,6 +13,7 @@ import_code("../../libs/context/pages-read.gs")
 import_code("../../libs/context/pages-send.gs")
 import_code("../../libs/context/session.gs")
 import_code("../../libs/context/logs.gs")
+import_code("../../libs/context/console.gs")
 import_code("../../libs/std-lib/sort.gs")
 
 import_code("config.gs")
