@@ -85,7 +85,6 @@ UI.LoadConfig = function(section)
     self.SessionInactiveColor = section.Str("session-inactive-color", self.SessionInactiveColor)
     self.SessionScrollBG      = section.Str("session-scroll-bg",      self.SessionScrollBG)
     self.SessionScrollColor   = section.Str("session-scroll-color",   self.SessionScrollColor)
-
 end function
 
 // Draw() Returns two strings, the whole screen, and the prompt.

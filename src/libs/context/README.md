@@ -12,6 +12,13 @@ The context object provides inter-process communication primitives through the "
 
 To better share errors between calls and persist them for the user to examine, the context contains the `Errors` value, which is a list of values.
 
+## Console
+
+The console ("terminal") is extremely limited in Grey Hack.  As a result, many standard features are simulated in the context shared object.
+
+* `Console.Width` - intended to be the number of columns horizontally that can be displayed on a single line in the terminal.  However, because there is no direct way to read this information, the user must provide the best option.  A good default is given.
+* `Console.Height` - same thing as width, but for the number of viewable rows in the terminal without scrolling.
+
 ## Pages
 
 A "page" in the context object has these aspects:
@@ -32,6 +39,7 @@ The `Fields` in the meta-data has a special set of conventions to help with dyna
 * `Width` - a number representing a hint at how many characters the field should take up.  Useful for tabular display of the field.
 * `Text` - if given, a function that's passed the field's value, and returns a string to display.
 
+In many ways, because the tools cannot pipe output to each other through file descriptors like in Unix tools, the Page becomes the method of communication.  It adds a bit more robustness to the data than a simple stream, which makes communication a bit easier.
 
 ## Sessions
 

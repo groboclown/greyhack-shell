@@ -95,6 +95,9 @@ ContextLib.LogPage.Metadata = {
             "Color": "#606060",
             "Width": 4,
         },
+        "source": {
+            "Description": "The source that generated the log message",
+        },
         "msg": {
             "Description": "Raw message text",
         },
