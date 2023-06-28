@@ -1,0 +1,243 @@
+
+if params.len <= 0 or params[0] == "-h" or params[0] == "--help" then
+    print("A prototype at a falling blocks game.")
+    print("Usage: fallingblocks (control file name) [-d]")
+    print("The file name is a shared control file; it must be a fully qualified path.")
+    print("Run in one terminal without the '-d' to be the controller,")
+    print("Then run in another terminal with '-d' to be the display.")
+    exit()
+end if
+
+// Load the control file.
+fname = params[0]
+f = get_shell.host_computer.File(fname)
+if f == null then
+    pos = fname.lastIndexOf("/")
+    res = get_shell.host_computer.touch(fname[:pos], fname[pos+1:])
+    if res != 1 then
+        exit("Failed to create control file " + fname + ": " + res)
+    end if
+    f = get_shell.host_computer.File(fname)
+    if f == null then exit("Failed to access file " + fname)
+end if
+// Ensure, at game start, that the control file is
+// in an empty state.
+f.set_content("start -")
+
+// =============================================
+// Controller Program
+
+// ControllerProgram() The control program
+//
+// Reads in input, using the keyboard arrows.
+// Writes the controls to the control file.
+ControllerProgram = function(controlFile)
+    idx = 0
+    while true
+      clear_screen
+      print("'ESC' key to quit.")
+      x = user_input("input> ", false, true)
+      if x == "Escape" then break
+      controlFile.set_content(idx + " " + x)
+      idx = idx + 1
+    end while
+    controlFile.set_content("exit")
+end function
+
+// =============================================
+// Display + Game Logic Program
+
+DisplayProgram = function(controlFile)
+    // initialize the state for the whole program.
+    state = {
+        "score": 0,
+        "level": 1,
+
+        // Game board
+        "boardWidth": 12,
+        "boardHeight": 10,
+        "border": "",
+        "board": [],
+
+        // the falling brick
+        "pos": {"x": 0, "y": 0},
+        "color": "ff00ff",
+
+        // this is basically how hard the game is.
+        "speed": 800,
+        "timer": 0,
+
+        // Control logic bits
+        "last": "",
+        "lastAction": "(start)",
+
+        "finished": false,
+    }
+    border = char(183)
+    for x in range(0, state.boardWidth)
+        // blocks are 1 tall, 2 characters wide
+        border = border + char(183) + char(183)
+    end for
+    state.border = "<size=1em><color=#909090>" + border + char(8226)
+
+    InitGameLevel(state)
+
+    while not state.finished
+        // Should conditionally show start game play game here.
+
+        DoFrame(controlFile, state)
+    end while
+
+end function
+
+// DrawFrame() Draws one frame of the game.
+DrawFrame = function(state)
+    // Draw screen
+    clear_screen()
+    print("Score: " + state.score + "   Level: " + state.level)
+    // print("Debug: " + state.last + " " + state.lastAction + " " + state.pos.y + " " + state.timer + " " + state.color)
+    print(state.border)
+    for y in range(0, state.boardHeight)
+        line = "<size=1em>|"
+        for x in range(0, state.boardWidth)
+            if y == state.pos.y and x == state.pos.x then
+                line = line + "<mark=#" + state.color + "ff><color=#" + state.color + ">MM</color></mark>"
+            else
+                ex = state.board[y][x]
+                if ex == null then
+                    line = line + "  "
+                else
+                    line = line + "<mark=#" + ex + "ff><color=#" + ex + ">XX</color></mark>"
+                end if
+            end if
+        end for
+        print(line + "|")
+    end for
+    print(state.border)
+end function
+
+// GameStep Perform one frame of physics
+GamePhysicsFrame = function(state)
+    // It's gravity!
+    state.pos.y = state.pos.y + 1
+end function
+
+// InitGameLevel() Initialize the map to a new game state.
+InitGameLevel = function(state)
+    state.pos = {"x": floor(state.boardWidth / 2), "y": 0}
+    state.color = "ff00ff"
+    state.speed = 810 - (state.level * 10)
+    state.timer = 0
+
+    board = []
+    for y in range(0, state.boardHeight)
+        row = []
+        for x in range(0, state.boardWidth)
+            row.push(null)
+        end for
+        board.push(row)
+    end for
+    state.board = board
+end function
+
+// GameSystems() Update one game logic step for the frame
+//
+// This is the rules enforcement system and scoring system.
+GameSystems = function(state)
+    if state.pos.x < 0 then state.pos.x = 0
+    if state.pos.x > state.boardWidth then state.pos.x = state.boardWidth
+    if state.pos.y < 0 then
+        state.pos.y = 0
+        state.score = state.score + 1
+    end if
+
+    placed = false
+    if state.pos.y > state.boardHeight then
+        // put the thing on the board.
+        state.board[state.boardHeight][state.pos.x] = state.color
+        placed = true
+    else if state.board[state.pos.y][state.pos.x] != null then
+        placed = true
+        if state.pos.y <= 1 then
+            // End of game state...
+            // This is right now just a counter of tne number of
+            // games played.  Not the score.
+            state.score = 0
+            state.level = 1
+            InitGameLevel(state)
+        else
+            state.board[state.pos.y-1][state.pos.x] = state.color
+        end if
+    end if
+    if placed then
+        // force a 2 digit number per place.
+        state.color = "ff" + (10 + floor(rnd() * 89)) + (10 + floor(rnd() * 89))
+        state.pos.y = 0
+        state.pos.x = floor(state.boardWidth / 2)
+
+        // For now...
+        state.level = state.level + 1
+        state.speed = state.speed - 10
+    end if
+end function
+
+// HandleInput() Handle the input controls
+HandleInput = function(controlFile, state)
+    cmd = controlFile.get_content
+    if cmd == "exit" then
+        state.finished = true
+        return
+    end if
+    if cmd == "" then return  // enter key
+    parts = cmd.split(" ")
+    if parts.len != 2 then return
+
+    if parts[0] != state.last then
+        // handle new command
+        state.last = parts[0]
+        state.lastAction = parts[1]
+        if state.lastAction == "LeftArrow" then
+            state.pos.x = state.pos.x - 1
+        else if state.lastAction == "RightArrow" then
+            state.pos.x = state.pos.x + 1
+        else if state.lastAction == "UpArrow" then
+            state.pos.y = state.pos.y - 1
+        else if state.lastAction == "DownArrow" then
+            state.pos.y = state.pos.y + 1
+        else if state.lastAction == " " then
+            // rotate
+        end if
+    end if
+end function
+
+// DoFrame() Handle the per-frame pipeline.
+DoFrame = function(controlFile, state)
+    // Handle Input
+    HandleInput(controlFile, state)
+    if state.finished then return
+
+    // Increment time + physics
+    state.timer = state.timer - 1
+    if state.timer < 0 then
+        state.timer = state.speed
+        GamePhysicsFrame(state)
+    end if
+    
+    // Game systems for the frame
+    GameSystems(state)
+
+    // Render pipeline
+    DrawFrame(state)
+end function
+
+
+// =============================================
+// Program Picker
+
+if params.len == 1 then
+    ControllerProgram(f)
+else if params.len == 2 and params[1] == "-d" then
+    DisplayProgram(f)
+else
+    exit("Invalid usage.  Run with --help for more information.")
+end if

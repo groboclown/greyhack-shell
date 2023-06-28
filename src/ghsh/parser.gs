@@ -2,26 +2,15 @@
 
 ParsedCommand = {}
 
-
 ParsedCommand.Argument = {}
-
-// ParsedCommand.Argument An argument that can be inspected.
-//
-// Can take a name/value, value, or a command (ParsedCommand).
-ParsedCommand.Argument.New = function(name, value, command, original)
-    ret = new ParsedCommand.Argument
-    ret.Name = name
-    ret.Value = value
-    ret.Command = command
-    ret.Original = original
-    return ret
-end function
-
 
 ParsedCommand.Command = {}
 ParsedCommand.Command.New = function(name, args, errors)
     ret = new ParsedCommand.Command
     ret.Name = name
+    // Arguments are strings, never commands.  The $() syntax
+    // is not supported.  With the removal of stdout, it loses its
+    // meaning.  Now, this is done through page references.
     ret.Args = args
     ret.Errors = errors
     ret.PromptOnExit = false
@@ -32,7 +21,6 @@ ParsedCommand.Command.New = function(name, args, errors)
 
     return ret
 end function
-
 
 ParsedCommand.CharClass = {
     "LF": char(10),
@@ -63,7 +51,6 @@ ParsedCommand.CharClass = {
 ParsedCommand.CharClass.IsWhitespace = function(c)
     return c == ParsedCommand.CharClass.LF or c == ParsedCommand.CharClass.CR or c == ParsedCommand.CharClass.TAB or c == ParsedCommand.CharClass.SP
 end function
-
 
 // Static function to parse a command into multiple commands + arguments.
 //
@@ -212,13 +199,13 @@ ParsedCommand.Parse = function(text, env, context, defaultPage)
             // Inside an argument.
             if ParsedCommand.CharClass.IsWhitespace(c) then
                 // End of the argument.
-                stateStack[-1].args.push(ParsedCommand.parseArgument(text[stateStack[-1].start:pos]))
+                stateStack[-1].args.push(text[stateStack[-1].start:pos])
                 // Go back to searching for an argument start.
                 stateStack[-1].state = 100
 
             else if c == ParsedCommand.CharClass.SE or c == "" then
                 // semi-colon; end the argument & command.
-                stateStack[-1].args.push(ParsedCommand.parseArgument(text[stateStack[-1].start:pos]))
+                stateStack[-1].args.push(text[stateStack[-1].start:pos])
                 endCmd()
                 stateStack[-1].state = 0
     
@@ -481,27 +468,6 @@ ParsedCommand.Parse = function(text, env, context, defaultPage)
         ret.push(ParsedCommand.Command.New(null, [], stateStack[0].problems + ["Command did not terminate correctly."]))
     end if
     return ret
-end function
-
-ParsedCommand.parseArgument = function(text)
-    name = null
-    value = null
-    if text == "--" or text == "-" then
-        // Special handling.
-        return ParsedCommand.Argument.New(null, null, null, text)
-    else if text[0:2] == "--" and text.len > 2 then
-        p = text.indexOf("=")
-        if p > 0 then
-            name = text[2:p]
-            value = text[p+1:]
-            return ParsedCommand.Argument.New(name, value, null, text)
-        else
-            return ParsedCommand.Argument.New(text[2:], true, null, text)
-        end if
-    else if text[0] == "-" and text.len > 1 then
-        return ParsedCommand.Argument.New(text[1:], true, null, text)
-    end if
-    return ParsedCommand.Argument.New(null, text, null, text)
 end function
 
 ParsedCommand.parseContext = function(page, index, field, context)

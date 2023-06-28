@@ -68,7 +68,7 @@ Cat.Run = function(context, args, session)
         })
     end if
 
-    for match in FileLib.Expand.ExpandFiles(args.Ordered, session.Computer, session.Home, session.Cwd)
+    for match in FileLib.Expand.ExpandFiles(args.Unnamed, session.Computer, session.Home, session.Cwd)
         f = match.File
         if f == null then
             context.Errors.push(ErrorLib.Error.New("No such file: '{name}'", {
