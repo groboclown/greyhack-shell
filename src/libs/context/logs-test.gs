@@ -18,8 +18,11 @@ TestLogs_empty_simple = function(t)
     while existing.len > 0
         existing.pop()
     end while
+    existing.PagesMeta = {}
+    existing.PagesMeta[ContextLib.LogPage.Name] = ContextLib.LogPage.Metadata
 
-    ContextLib.Log("error", "simple")
+    logger = ContextLib.Logger.New()
+    logger.Error("simple")
     context = ContextLib.Get()
     entry = ContextLib.NextPageRow(context, ContextLib.LogPage.Name)
     if t.AssertNotNull(entry, "null first row") then return

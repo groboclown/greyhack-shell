@@ -6,26 +6,34 @@ import_code("../libs/context/logs.gs")
 import_code("../libs/context/pages-read.gs")
 import_code("../libs/context/pages-create.gs")
 import_code("../libs/context/pages-send.gs")
+import_code("../libs/context/cli-helper.gs")
 import_code("../libs/format/formatted-str.gs")
 
 Clear = {}
 
-Clear.Run = function(context, args)
-    if args.GetNamed("h") or args.GetNamed("help") then
-        ContextLib.Log("warning", "clear - Clears out pages.")
-        ContextLib.Log("info", "")
-        ContextLib.Log("info", "Usage: clear [--errors] [page [page ...]]")
-        ContextLib.Log("info", "")
-        ContextLib.Log("info", "When --errors is given, then the errors")
-        ContextLib.Log("info", "are cleared.  If no page is given, then the active page")
-        ContextLib.Log("info", "is cleared.")
-        ContextLib.Log("info", "")
-        return
-    end if
+Clear.usage = {
+    "cmd": "clear",
+    "summary": "Clears records from pages",
+    "requiresArg": false,
+    "epilogue": "If no page is given, and --errors is not given, then the active page is cleared (or closed).",
+    "args": [
+        {"name": "errors", "desc": "Clears the errors list"},
+        {"name": "close", "desc": "Close the named page"},
+        {"valued": "pageN...", "desc": "Clears the named page.  Multiple values may be given."},
+    ],
+}
 
-    if args.Empty then
+Clear.Run = function(context, args)
+    if ContextLib.Cli.TryHelp(args, Clear.usage, context) then return
+    doClose = args.GetNamed("close") == true
+
+    if args.Unnamed.len <= 0 then
         if context.Pages.hasIndex(context.ActivePage) then
-            ContextLib.ClearPage(context, context.ActivePage)
+            if doClose then
+                ContextLib.ClosePage(context, context.ActivePage)
+            else
+                ContextLib.ClearPage(context, context.ActivePage)
+            end if
         end if
         return
     end if

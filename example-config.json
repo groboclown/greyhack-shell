@@ -37,5 +37,10 @@
         "aliases": {
             ":p": "pagecontroller"
         }
+    },
+    "user": {
+        "env": {
+            "PROMPT": "{User}@{Ip} {CwdN} $ "
+        }
     }
 }

@@ -5,9 +5,13 @@ import_code("../libs/context/get.gs")
 import_code("../libs/context/pages-create.gs")
 import_code("../libs/context/logs.gs")
 import_code("../libs/context/pages-send.gs")
+import_code("../libs/context/cli-helper.gs")
 import_code("../libs/format/formatted-str.gs")
 
 PageController = {}
+
+PageController.DEFAULT_JUMP_ROWS = 10
+
 PageController.MakePageListPage = function(context)
     // Add a page with only the list of pages.
     ContextLib.CreatePage(context, "?", {
@@ -26,7 +30,9 @@ PageController.MakePageListPage = function(context)
             "Description": {
                 "Order": 3,
                 "Color": "#808080",
-            }}})
+            },
+        },
+    })
     ContextLib.ClearPage(context, "?")
     for idx in context.PagesOrder.indexes
         key = context.PagesOrder[idx]
@@ -38,6 +44,23 @@ PageController.MakePageListPage = function(context)
         ContextLib.SendToPage(context, "?", {"Index": idx, "Name": key, "Description": desc})
     end for
 end function
+
+PageController.usage = {
+    "cmd": "pagecontroller",
+    "summary": "Changes the page display",
+    "requiresArg": true,
+    "long": [
+        "This tool has quick access for flipping between pages and through pages.",
+        "Usage: (/ | . | - | + | (page name)) [number]",
+        "  /           Next page",
+        "  .           Previous page",
+        "  +           Next group of rows in the current page",
+        "  -           Previous group of rows in the current page",
+        "  ?           Special page name for the list of pages; shows the list of pages",
+        "  (page name) Name of the page to view",
+        "  number      If you specify a number, then that's the number of items to change",
+    ],
+}
 
 PageController.AdvanceActivePage = function(count, context)
     // Move to the next page item.
@@ -85,6 +108,8 @@ PageController.Page__count = function(args, defaultValue)
 end function
 
 PageController.Run = function(context, args)
+    if ContextLib.Cli.TryHelp(args, PageController.usage, context) then return
+
     firstPlain = null
     for arg in args.Ordered
         if arg.Name == null and arg.Value isa string then
@@ -92,6 +117,7 @@ PageController.Run = function(context, args)
             break
         end if
         if arg.Original == "-" then
+            // This is the interesting handling of "-" and "--" arguments.
             firstPlain = "-"
             break
         end if
@@ -103,7 +129,6 @@ PageController.Run = function(context, args)
     end if
     if firstPlain == "?" then
         PageController.MakePageListPage(context)
-        // ContextLib.Log("info", "Setting active page to '?'")
         context.ActivePage = "?"
         return 0
     end if
@@ -116,12 +141,11 @@ PageController.Run = function(context, args)
         return 0
     end if
     if firstPlain == "+" then
-        PageController.ScrollActivePage(PageController.Page__count(args, 5), context)
+        PageController.ScrollActivePage(PageController.Page__count(args, PageController.DEFAULT_JUMP_ROWS), context)
         return 0
     end if
-    // This is the interesting handling of "-" and "--" arguments.
     if firstPlain == "-" then
-        PageController.ScrollActivePage(0 - PageController.Page__count(args, 5), context)
+        PageController.ScrollActivePage(0 - PageController.Page__count(args, PageController.DEFAULT_JUMP_ROWS), context)
         return 0
     end if
     if context.Pages.hasIndex(firstPlain) then
@@ -139,26 +163,9 @@ PageController.Run = function(context, args)
     return 1
 end function
 
-PageController.Help = function()
-    ContextLib.Log("warning", "Page Controller")
-    ContextLib.Log("info", "Changes the page display.")
-    ContextLib.Log("info", "This tool has quick access for flipping between pages and through pages.")
-    ContextLib.Log("info", "Usage: (/ | . | - | + | (page name)) [number]")
-    ContextLib.Log("info", "  /    Next Page")
-    ContextLib.Log("info", "  .    Previous Page")
-    ContextLib.Log("info", "  +    Next group of rows in the current page")
-    ContextLib.Log("info", "  -    Previous group of rows in the current page")
-    ContextLib.Log("info", "  ?    Special page name for the list of pages")
-    ContextLib.Log("info", " (page name)  Name of the page to view")
-    ContextLib.Log("info", " If you specify a number, then that's the number of items to change")
-    exit
-end function
-
 PageController.Main = function()
     context = ContextLib.Get()
     args = context.Args
-
-    if args.Empty or args.GetNamed("h") or args.GetNamed("help") then PageController.Help()
     res = PageController.Run(context, args)
     exit
 end function

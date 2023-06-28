@@ -202,7 +202,7 @@ end function
 // ApplyStyle() Creates a new style map with the given text.
 ContextLib.Console.ApplyStyle = function(text, style)
     ret = { "t": text }
-    for key in self._style_idx.indexes
+    for key in self._style_idx
         if style.hasIndex(key) then ret[key] = style[key]
     end for
     return ret
@@ -220,11 +220,11 @@ ContextLib.Console.PullStyle = function(data, textKey, style)
     if data isa map and data.hasIndex(textKey) then text = @data[textKey]
     if not style isa map then return text
     ret = { "t": text }
-    for key in self._style_idx.indexes
+    for key in self._style_idx
         if style.hasIndex(key) then
             val = @style[key]
             if @val isa funcRef then val = val(row)
-            ret[key] = row
+            ret[key] = val
         end if
     end for
     return ret

@@ -6,6 +6,7 @@ import_code("../libs/context/logs.gs")
 import_code("../libs/context/pages-create.gs")
 import_code("../libs/context/pages-read.gs")
 import_code("../libs/context/pages-send.gs")
+import_code("../libs/context/cli-helper.gs")
 import_code("../libs/format/formatted-str.gs")
 import_code("../libs/errors.gs")
 
@@ -13,14 +14,18 @@ Ps = {}
 
 Ps.PageName = "ps"
 
+Ps.usage = {
+    "cmd": "ps",
+    "summary": "List active processes",
+    "requiresArg": false,
+    "long": "Sends the list of active processes to the page '" + Ps.PageName + "'",
+    "args": [
+        {"name": "c", "desc": "Clear the page before listing"},
+    ],
+}
+
 Ps.Run = function(context, args, session)
-    if args.GetNamed("h") or args.GetNamed("help") then
-        ContextLib.Log("warning", "ps - Show running processes.")
-        ContextLib.Log("info", "")
-        ContextLib.Log("info", "Usage: ps")
-        ContextLib.Log("info", "")
-        return
-    end if
+    if ContextLib.Cli.TryHelp(args, Ps.usage, context) then return
 
     data = session.Computer.show_procs
     if not data isa string then
@@ -28,6 +33,9 @@ Ps.Run = function(context, args, session)
         return
     end if
     // user pid cpu mem command
+    if args.GetNamed("c") or args.GetNamed("clear") then
+        ContextLib.ClearPage(context, Ps.PageName)
+    end if
 
     ContextLib.CreatePage(context, Ps.PageName, {
         "Default": "pid",

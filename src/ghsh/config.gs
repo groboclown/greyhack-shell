@@ -9,7 +9,7 @@ MCConfig = {}
 
 // Load() Load the MC configuration.
 MCConfig.Load = function(context, filename = null)
-    if filename == null then filename = "~/.mc.json"
+    if filename == null then filename = "~/.config.json"
     session = ContextLib.GetSession(context)
     if session == null then
         print("ERROR: NO SESSION FOUND")

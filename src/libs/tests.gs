@@ -279,7 +279,8 @@ T.ConsoleLogger.Error = function(depth, err)
     else
         text = str(err)
     end if
-    print self.GetIndent(depth + 1) + "<color=#800000>Fail</color> - " + text + "</color>"
+    text = text.replace("</noparse>", "<!noparse>")
+    print self.GetIndent(depth + 1) + "<color=#800000>Fail</color> - <noparse>" + text + "</noparse></color>"
 end function
 
 T.ConsoleLogger.TestEnd = function(depth, name, pass)

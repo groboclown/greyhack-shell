@@ -5,26 +5,24 @@ import_code("../libs/context/get.gs")
 import_code("../libs/context/pages-create.gs")
 import_code("../libs/context/logs.gs")
 import_code("../libs/context/pages-send.gs")
+import_code("../libs/context/cli-helper.gs")
 import_code("../libs/format/formatted-str.gs")
 
 Echo = {}
 
+Echo.usage = {
+    "cmd": "echo",
+    "summary": "Sends output to a page",
+    "epilogue": "If --page=name is given, then the output is sent to that page, and values must be given in --(key)=(value) form; all other arguments are ignored.  Otherwise, the text argument is sent to the log page.",
+    "requiresArg": false,
+    "args": [
+        {"name": "page", "valued": "name", "desc": "Page to send output to."},
+    ],
+}
+
 Echo.Run = function(context, args)
-    if args.GetNamed("h") or args.GetNamed("help") then
-        ContextLib.Log("warning", "echo - Send output to a page.")
-        ContextLib.Log("info", "")
-        ContextLib.Log("info", "Usage: echo [--page=(page name) --key=value ...] | [text]")
-        ContextLib.Log("info", "")
-        ContextLib.Log("info", "When --page is given, then the key/value pairs")
-        ContextLib.Log("info", "are sent to the page in a single row.")
-        ContextLib.Log("info", "")
-        ContextLib.Log("info", "When just the text is given, then the text is sent to")
-        ContextLib.Log("info", "the log page.")
-        ContextLib.Log("info", "")
-        return
-    end if
+    if ContextLib.Cli.TryHelp(args, Echo.usage, context) then return
     page = args.GetNamed("page")
-    if page == null then page = args.GetNamed("p")
 
     // Logging
     if page == null then
@@ -37,21 +35,23 @@ Echo.Run = function(context, args)
                 else
                     value = value + " "
                 end if
-                value = value + arg.Value
+                value = value + arg.Original
             end if
         end for
-        ContextLib.Log("info", value)
+        logger = ContextLib.Logger.New("echo", context)
+        logger.Info(value)
+        context.ActivePage = ContextLib.LogPage.Name
         return
     end if
 
     row = {}
     for arg in args.Ordered
-        if arg.Name != null and arg.Name != "page" then
+        if arg.Name != null and arg.Name != "page" and arg.Value != null then
             row[arg.Name] = arg.Value
         end if
     end for
     ContextLib.SendToPage(context, page, row)
-
+    context.ActivePage = page
 end function
 
 Echo.Main = function()

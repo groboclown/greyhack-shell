@@ -16,20 +16,38 @@ import_code("../libs/files/expand-args.gs")
 Cat = {}
 
 Cat.usage = {
-    "cmd": "cat",
-    "summary": "Reads files and outputs to a page",
-    //"long": "Sends the content of text files into a page.",
+    "cmd": "cp",
+    "summary": "Copies files to a target location within the same computer",
     "requiresArg": true,
     "args": [
         {
-            "name": "page", "valued": "name",
-            "desc": "Sends output to the named page.  If not given, then output " +
-                "is sent to the log.",
+            "name": "R",
+            "desc": "If copying a directory, then it copies all contents of the directory.",
+        },
+        {
+            "name": "f",
+            "desc": "If the destination file cannot be written to, attempts to remove the file first.",
+        },
+        {
+            "name": "p",
+            "desc": "Preserve the attributes as best as possible (permissions, user, ownership)",
+        },
+        {
+            "name": "n",
+            "desc": "Do not overwrite existing files; only add new files",
+        },
+        {
+            "name": "u",
+            "desc": "Only overwrite existing files; do not add new files",
         },
         {
             "valued": "fileN...",
-            "desc": "File to read and send to the page.  Multiple files can be given at once.",
+            "desc": "Files to copy into the destination.",
         },
+        {
+            "valued": "target",
+            "desc": "The target file, or, if an existing directory, the directory to copy into.",
+        }
     ],
 }
 

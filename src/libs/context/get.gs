@@ -18,7 +18,7 @@ ContextLib.Get = function()
     if not ret.NamedSessions.hasIndex("local") then
         ret.NamedSessions.local = {
             "Name": "local",
-            "Ip": null, // could be computer.local_ip or computer.public_ip
+            "Ip": get_shell.host_computer.public_ip, // could be computer.local_ip
             "Home": home_dir,
             "User": active_user,
             "Password": null,

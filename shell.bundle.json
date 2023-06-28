@@ -1,0 +1,26 @@
+[
+    {
+        "type": "about",
+        "description": "A fancy shell replacement.",
+        "notes": [
+            "Order of files is important."
+        ]
+    },
+    {
+        "type": "file",
+        "path": "~/.config.json",
+        "local": "example-config.json"
+    },
+    {
+        "type": "compile",
+        "local": "src/ghsh/main.gs",
+        "target": "~/bin/ghsh",
+        "local-tests": [
+            "src/ghsh/*-test.gs"
+        ]
+    },
+    {
+        "type": "bundle",
+        "local": "tests.bundle.json"
+    }
+]

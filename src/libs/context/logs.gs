@@ -104,30 +104,72 @@ ContextLib.LogPage.Metadata = {
         "text": {
             "Description": "Log text",
             "Order": 2,
-            "Style": @ContextLib_LogPage_GetLevelStyle,
+            // There's a bug keeping this from working.
+            //"Style": @ContextLib_LogPage_GetLevelStyle,
         },
     },
 }
 ContextLib.LogPage.Metadata.Fields.text.Style = @ContextLib_LogPage_GetLevelStyle
 
-ContextLib.Log = function(level, message, arguments=null, context=null)
-    if arguments == null then arguments = {}
+ContextLib.Logger = {}
+
+ContextLib.Logger.New = function(source=null, context=null)
+    if source == null then source = "()"
     if context == null then context = ContextLib.Get()
+    // Ensure the log page exists.
+    ContextLib.CreatePage(context, ContextLib.LogPage.Name, ContextLib.LogPage.Metadata)
+
+    ret = new ContextLib.Logger
+    ret.source = source
+    ret.context = context
+    ret.MinLevel = context.PagesMeta[ContextLib.LogPage.Name].minlevel
+    return ret
+end function
+
+ContextLib.Logger.Log = function(level, message, arguments=null)
     if ContextLib.LogPage.LogLevels.hasIndex(level) then
         loglevel = ContextLib.LogPage.LogLevels[level]
     else
         loglevel = ContextLib.LogPage.LogLevels[ContextLib.LogPage.INFO]
     end if
-    // Ensure the log page exists.
-    ContextLib.CreatePage(context, ContextLib.LogPage.Name, ContextLib.LogPage.Metadata)
-
-    // Should it be logged?
-    if loglevel.level >= context.PagesMeta[ContextLib.LogPage.Name].minlevel then
-        ContextLib.SendToPage(context, ContextLib.LogPage.Name, {
+    // Should it be logged?  Wrap as much as possible within this
+    // if block.
+    if loglevel.level >= self.MinLevel then
+        if arguments == null then arguments = {}
+        ContextLib.SendToPage(self.context, ContextLib.LogPage.Name, {
             "level": loglevel.name,
+            "source": self.source,
             "msg": message,
             "args": arguments,
             "text": globals.FormatStr.PyFormat(message, arguments),
         })
     end if
+end function
+
+ContextLib.Logger.Trace = function(message, arguments=null)
+    self.Log(ContextLib.LogPage.TRACE, message, arguments)
+end function
+
+ContextLib.Logger.Debug = function(message, arguments=null)
+    self.Log(ContextLib.LogPage.DEBUG, message, arguments)
+end function
+
+ContextLib.Logger.Verbose = function(message, arguments=null)
+    self.Log(ContextLib.LogPage.VERBOSE, message, arguments)
+end function
+
+ContextLib.Logger.Info = function(message, arguments=null)
+    self.Log(ContextLib.LogPage.INFO, message, arguments)
+end function
+
+ContextLib.Logger.Warning = function(message, arguments=null)
+    self.Log(ContextLib.LogPage.WARNING, message, arguments)
+end function
+
+ContextLib.Logger.Error = function(message, arguments=null)
+    self.Log(ContextLib.LogPage.ERROR, message, arguments)
+end function
+
+ContextLib.Logger.Fatal = function(message, arguments=null)
+    self.Log(ContextLib.LogPage.FATAL, message, arguments)
 end function

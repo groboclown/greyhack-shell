@@ -1,11 +1,11 @@
 import_code("ui.gs")
-import_code("../../libs/context/pages-read.gs")
-import_code("../../libs/context/logs.gs")
-import_code("../../libs/context/console.gs")
-import_code("../../libs/format/formatted-str.gs")
-import_code("../../libs/std-lib/sort.gs")
-import_code("../../libs/errors.gs")
-import_code("../../libs/tests.gs")
+import_code("../libs/context/pages-read.gs")
+import_code("../libs/context/logs.gs")
+import_code("../libs/context/console.gs")
+import_code("../libs/format/formatted-str.gs")
+import_code("../libs/std-lib/sort.gs")
+import_code("../libs/errors.gs")
+import_code("../libs/tests.gs")
 
 // Test the ui script.
 
@@ -47,20 +47,27 @@ end function
 
 // TestUI_draw_row_log() Test drawing a log row.
 TestUI_draw_row_log = function(t)
-    ui = UI.New()
-    ui.Width = 20
-    ui.ColSep = { "t": "|" }
-    rows = ui._draw_row_set([
-        {"level": "warning", "msg": "tuna", "args": {}, "text": "tuna1"},
-        {"level": "error", "msg": "crab", "args": {}, "text": "crab2"},
-    ], ContextLib.LogPage.Metadata, 2, 0)
-    if t.AssertEqual(2, rows.len) then return
-    t.AssertEqual(
-        "<color=#606060>warn</color>|<color=#a04000>tuna1          </color>",
-        rows[0])
-    t.AssertEqual(
-        "<color=#606060>erro</color>|<color=#f02020>crab2          </color>",
-        rows[1])
+    origWidth = ContextLib.Console.Width
+    doIt = true
+    while doIt
+        doIt = false
+
+        ui = UI.New()
+        ContextLib.Console.Width = 20
+        ui.ColSep = { "t": "|" }
+        rows = ui._draw_row_set([
+            {"level": "warning", "msg": "tuna", "args": {}, "text": "tuna1"},
+            {"level": "error", "msg": "crab", "args": {}, "text": "crab2"},
+        ], ContextLib.LogPage.Metadata, 2, 0)
+        if t.AssertEqual(2, rows.len) then break
+        t.AssertEqual(
+            "<color=#606060><noparse>warn</noparse></color><noparse>|</noparse><color=#a04000><b><noparse>tuna1          </noparse></b></color>",
+            rows[0])
+        t.AssertEqual(
+            "<color=#606060><noparse>erro</noparse></color><noparse>|</noparse><color=#f02020><b><noparse>crab2          </noparse></b></color>",
+            rows[1])
+    end while
+    ContextLib.Console.Width = origWidth
 end function
 
 if locals == globals then T.RunTests

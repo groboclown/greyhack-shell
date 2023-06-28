@@ -1,8 +1,8 @@
 // Test the parser.
 
 import_code("parser.gs")
-import_code("../../libs/errors.gs")
-import_code("../../libs/tests.gs")
+import_code("../libs/errors.gs")
+import_code("../libs/tests.gs")
 
 TestParse_empty = function(t)
     res = ParsedCommand.Parse("", {}, {})

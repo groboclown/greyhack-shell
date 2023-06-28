@@ -4,6 +4,7 @@
 // Requires:
 // import_code("../../libs/files/paths.gs")
 // import_code("../../libs/errors.gs")
+// import_code("../../libs/logs.gs")
 
 CmdletManager = {}
 
@@ -15,6 +16,7 @@ CmdletManager.New = function()
     ret.CmdletPaths = ["~/bin/cmdlets"]
     ret.BinPaths = ["~/bin"]
     ret.SrcDir = "~/src"
+    ret.logger = ContextLib.Logger.New("cmdlets")
     return ret
 end function
 
@@ -31,7 +33,7 @@ CmdletManager.Run = function(cmd, context, session)
 
     invoke = self.findCommand(cmd, session)
     if invoke == null then
-        ContextLib.Log("error", "Could not find command " + cmd.Name)
+        self.logger.Error("Could not find command {name}", {"name": cmd.Name})
         return -1
     end if
     context.Cmd = invoke.name
@@ -42,7 +44,7 @@ CmdletManager.Run = function(cmd, context, session)
     if res != 1 then
         context.Errors.push(ErrorLib.Error.New("[{cmd}] exited with [{res}]", {"cmd": cmd.Name, "res": res}))
     end if
-    ContextLib.Log("debug", "Running [{path}] returned [{val}] ({t})", {"path": invoke.file.path, "val": res, "t": typeof(res)})
+    self.logger.Debug("Running [{path}] returned [{val}] ({t})", {"path": invoke.file.path, "val": res, "t": typeof(res)})
     if cmd.PromptOnExit then user_input("(press enter to continue)")
     return res
 end function
@@ -86,7 +88,7 @@ CmdletManager.mkLaunchArgs = function(cmd, session)
             end for
         // Ignore arguments that can't be used as a launch argument.
         // An argument like "{name}" generates the error "Invalid character '{' in program parameters"
-        else if val.indexOf("{") == null then
+        else if val.indexOf("{") == null and val.indexOf("[") == null then
             ret.push(val)
         end if
     end for
@@ -112,17 +114,23 @@ CmdletManager.getBinFile = function(cmdName, session)
     return null
 end function
 
+// TODO script file - building and executing them.
 
 CmdletManager.ArgumentSet = {}
 CmdletManager.ArgumentSet.New = function(argList)
     ret = new CmdletManager.ArgumentSet()
     ret.Ordered = argList
+    ret.Unnamed = []
     ret.Count = argList.len
     ret.Named = {}
     ret.ValueSet = {}
     ret.Empty = argList.len <= 0
     for arg in argList
-        if arg.Name != null then ret.Named[arg.Name] = arg.Value
+        if arg.Name != null then
+            ret.Named[arg.Name] = arg.Value
+        else
+            ret.Unnamed.push(arg.Original)
+        end if
         ret.ValueSet[arg.Value] = true
     end for
     return ret

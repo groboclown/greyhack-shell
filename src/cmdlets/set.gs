@@ -6,26 +6,30 @@ import_code("../libs/context/logs.gs")
 import_code("../libs/context/pages-create.gs")
 import_code("../libs/context/pages-send.gs")
 import_code("../libs/context/pages-read.gs")
+import_code("../libs/context/cli-helper.gs")
 import_code("../libs/std-lib/sort.gs")
 import_code("../libs/format/formatted-str.gs")
 
 Set = {}
 
+Set.PageName = "env"
+
+Set.usage = {
+    "cmd": "set",
+    "summary": "Set an environment variable",
+    "requiresArg": false,
+    "long": [
+        "Usage: set [name]=[value]",
+        "When used without a value, displays the page '" + Set.PageName + "' containing all the current session's environment variables.",
+        "Setting the name to no value removes the environment variable.",
+    ],
+}
+
 Set.Run = function(context, args, session)
-    if args.GetNamed("h") or args.GetNamed("help") then
-        ContextLib.Log("warning", "set - Set an environment variable.")
-        ContextLib.Log("info", "")
-        ContextLib.Log("info", "Usage: set [name]=[value]")
-        ContextLib.Log("info", "")
-        ContextLib.Log("info", "When used without a value, displays a")
-        ContextLib.Log("info", "page with all the environment variables.")
-        ContextLib.Log("info", "Setting to no value removes the environment variable.")
-        ContextLib.Log("info", "")
-        return
-    end if
+    if ContextLib.Cli.TryHelp(args, Set.usage, context) then return
 
     if args.Empty then
-        ContextLib.CreatePage(context, "env", {
+        ContextLib.CreatePage(context, Set.PageName, {
             // Default is name, because value is easily fetched with ${}
             "Default": "name",
             "Text": "setting",
@@ -46,7 +50,7 @@ Set.Run = function(context, args, session)
                 },
             },
         })
-        ContextLib.ClearPage("env")
+        ContextLib.ClearPage(Set.PageName)
         // Need to sort the values
         names = []
         for name in session.Env.indexes
@@ -55,9 +59,9 @@ Set.Run = function(context, args, session)
         StdLib.QuickSort(names, @StdLib.StringAscOrder)
         for name in names
             value = session.Env[name]
-            ContextLib.SendToPage(context, "env", {"name": name, "value": value, "setting": name + "=" + value})
+            ContextLib.SendToPage(context, Set.PageName, {"name": name, "value": value, "setting": name + "=" + value})
         end for
-        context.ActivePage = "env"
+        context.ActivePage = Set.PageName
         return
     end if
 

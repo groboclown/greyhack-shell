@@ -14,7 +14,7 @@ ContextLib = globals.ContextLib
 // If 'encrypt is not null, then it must be a function that takes the password and returns an
 // encoded value back.  If 'source' is not null, then it indicates the session name or
 // session object to use to make the connection.
-ContextLib.AddSession = function(context, name, ipAddress, port, user, password, source=null, encrypt=null)
+ContextLib.AddSession = function(context, name, ipAddress, port, user, password, source=null, encrypt=null, env=null)
     // Developer note: updating the values in the session object requires
     // updating the `get.gs` script, tool.
     if context == null or not context isa map or not context.hasIndex("NamedSessions") then return null
@@ -38,6 +38,9 @@ ContextLib.AddSession = function(context, name, ipAddress, port, user, password,
             "Failed connecting to {ipAddress}:{port} ({err})", {"source": "AddSession", "ipAddress": ipAddress, "port": port, "err": shell}))
         return null
     end if
+    // Make a copy of the env
+    if env == null then env = {}
+    env = {} + env
 
     ret = {
         "Name": name,
@@ -57,12 +60,12 @@ ContextLib.AddSession = function(context, name, ipAddress, port, user, password,
         "OnCmd": null,
         "OnCmdPost": null,
         "Parent": source.name,
-        // Should env be inherited?
-        "Env": {},
+        "Env": env,
     }
     context.NamedSessions[name] = ret
     if ContextLib.hasIndex("Log") then
-        ContextLib.Log("info", "Logged into {ip}", {
+        logger = ContextLib.Logger.New("session", context)
+        logger.Info("Logged into {ip}", {
             "ip": shell.ip,
             "user": shell.user,
         })
@@ -98,12 +101,11 @@ ContextLib.GetSession = function(context, name=null)
         end if
         ret.Shell = shell
         ret.Computer = shell.host_computer
-        if ContextLib.hasIndex("Log") then
-            ContextLib.Log("info", "Logged into {ip}", {
-                "ip": shell.ip,
-                "user": shell.user,
-            })
-        end if
+        logger = ContextLib.Logger.New("session", context)
+        logger.Info("Logged into {ip}", {
+            "ip": shell.ip,
+            "user": shell.user,
+        })
         // Does nothing if not a function, calls if a function.
         ret.OnLogin
     end if
@@ -117,6 +119,7 @@ end function
 ContextLib.SessionLogout = function(context, name=null)
     if context == null or not context isa map or not context.hasIndex("NamedSessions") then return null
     if name == null then name = context.CurrentSessionName
+    if name == null then return null
     if not context.NamedSessions.hasIndex(name) then
         context.Errors.push(ErrorLib.Error.New(
             "No such active session: {name}", {"source": "SessionLogout", "name": name}))
@@ -126,16 +129,15 @@ ContextLib.SessionLogout = function(context, name=null)
     if ret.Shell != null then
         // Does nothing if not a function, calls if a function.
         ret.OnLogout
-
-        // TODO what is the right approach to log out?
-        ret.Shell = null
         
-        if ContextLib.hasIndex("Log") then
-            ContextLib.Log("info", "Logged out of {ip}", {
-                "ip": shell.ip,
-                "user": shell.user,
-            })
-        end if
+        logger = ContextLib.Logger.New("session", context)
+        logger.Info("Logged out of {ip}", {
+            "ip": ret.Ip,
+            "user": ret.User,
+        })
+
+        // Note: there is no proper "log out" operation.
+        ret.Shell = null
 
         ret.OnLogoutPost
         return true
@@ -156,5 +158,12 @@ ContextLib.CloseSession = function(context, name=null)
                 break
             end if
         end for
+    end if
+    if name == context.CurrentSessionName then
+        if context.NamedSessionsOrder.len > 0 then
+            context.CurrentSessionName = context.NamedSessionsOrder[-1]
+        else
+            context.CurrentSessionName = null
+        end if
     end if
 end function

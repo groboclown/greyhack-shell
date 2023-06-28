@@ -1,11 +1,11 @@
 // Test the configuration code.
 
 import_code("config.gs")
-import_code("../../libs/errors.gs")
-import_code("../../libs/tests.gs")
-import_code("../../libs/context/session.gs")
-import_code("../../libs/files/json.gs")
-import_code("../../libs/files/paths.gs")
+import_code("../libs/errors.gs")
+import_code("../libs/tests.gs")
+import_code("../libs/context/session.gs")
+import_code("../libs/files/json.gs")
+import_code("../libs/files/paths.gs")
 
 TestConfig_Load = function(t)
     // Mock up the session and context.
@@ -24,9 +24,9 @@ TestConfig_Load = function(t)
 
     cfg = MCConfig.Load(context)
     if t.AssertNotNull(cfg, "Load returned a null value") then return
-    for k in cfg.indexes
-        print("Config: [" + k + "]")
-    end for
+    // for k in cfg.indexes
+    //     print("Config: [" + k + "]")
+    // end for
 
     t.AssertEqual(2, cfg.Section("s1").Int("anum"))
 end function

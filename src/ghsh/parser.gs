@@ -432,8 +432,8 @@ ParsedCommand.Parse = function(text, env, context, defaultPage)
                 stateStack[-1].state = 3002
 
             else if c == ParsedCommand.CharClass.BC then
-                // row:field format
-                value = ParsedCommand.parseContext("", stateStack[-1].part1, text[stateStack[-1].nstart:pos], context)
+                // page:row format
+                value = ParsedCommand.parseContext(stateStack[-1].part1, text[stateStack[-1].nstart:pos], "", context)
 
                 if value != null then
                     // Surgery to replace the text with the context value.
@@ -512,7 +512,11 @@ ParsedCommand.parseContext = function(page, index, field, context)
     end if
     if not index isa number then return null
     if not context.Pages.hasIndex(page) then return null
-    if field == "" or field == null then field = context.PagesMeta[page].Default
+    if field == "" or field == null then
+        field = ""
+        meta = context.PagesMeta[page]
+        if meta.hasIndex("Default") then field = meta.Default
+    end if
     page_list = context.Pages[page]
     if not page_list isa list then return null
     if index < 0 then

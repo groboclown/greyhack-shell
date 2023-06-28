@@ -1,0 +1,14 @@
+[
+    {
+        "type": "about",
+        "description": "The shell plus the cmdlets."
+    },
+    {
+        "type": "bundle",
+        "local": "shell.bundle.json"
+    },
+    {
+        "type": "bundle",
+        "local": "cmdlets.bundle.json"
+    }
+]

@@ -1,0 +1,20 @@
+[
+    {
+        "type": "about",
+        "description": "A fancy shell replacement.",
+        "notes": [
+            "Order of files is important."
+        ]
+    },
+    {
+        "type": "test",
+        "name": "unit-tests",
+        "local": [
+            "src/libs/context/*-test.gs",
+            "src/libs/format/*-test.gs",
+            "src/libs/files/*-test.gs",
+            "src/libs/std-lib/*-test.gs",
+            "src/ghsh/*-test.gs"
+        ]
+    }
+]
