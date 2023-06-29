@@ -2,6 +2,7 @@
 
 import_code("../libs/context/get.gs")
 import_code("../libs/context/pages-create.gs")
+import_code("../libs/context/pages-send.gs")
 import_code("../libs/context/session.gs")
 import_code("../libs/context/logs.gs")
 import_code("../libs/context/cli-helper.gs")

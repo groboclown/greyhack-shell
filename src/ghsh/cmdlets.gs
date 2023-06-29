@@ -256,7 +256,7 @@ CmdletManager.splitArgument = function(text)
         if p != null and p > 0 then
             return [text, text[2:p], text[p+1:], null]
         else
-            return [text, text[2:p], null, null]
+            return [text, text[2:], null, null]
         end if
     end if
     if text.len > 1 and text[:1] == "-" then

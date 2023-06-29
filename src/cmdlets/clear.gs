@@ -25,9 +25,28 @@ Clear.usage = {
 
 Clear.Run = function(context, args)
     if ContextLib.Cli.TryHelp(args, Clear.usage, context) then return
-    doClose = args.GetNamed("close") == true
+    doClose = args.GetNamed("close")
 
-    if args.UnnamedEmpty then
+    clearedAny = false
+    if args.GetNamed("errors") then
+        // Special case.
+        while context.Errors.len > 0
+            context.Errors.pop()
+        end while
+        clearedAny = true
+    end if
+
+    for arg in args.Unnamed
+        if arg.Value != null then
+            if doClose then
+                ContextLib.ClosePage(context, arg.Value)
+            else
+                ContextLib.ClearPage(context, arg.Value)
+            end if
+        end if
+        clearedAny = true
+    end for
+    if not clearedAny then
         if context.Pages.hasIndex(context.ActivePage) then
             if doClose then
                 ContextLib.ClosePage(context, context.ActivePage)
@@ -38,18 +57,6 @@ Clear.Run = function(context, args)
         return
     end if
 
-    if args.GetNamed("errors") == true then
-        // Special case.
-        while context.Errors.len > 0
-            context.Errors.pop()
-        end while
-    end if
-
-    for arg in args.Unnamed
-        if arg.Value != null then
-            ContextLib.ClearPage(context, arg.Value)
-        end if
-    end for
 end function
 
 Clear.Main = function()

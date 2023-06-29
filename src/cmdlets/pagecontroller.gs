@@ -111,16 +111,9 @@ PageController.Run = function(context, args)
     if ContextLib.Cli.TryHelp(args, PageController.usage, context) then return
 
     firstPlain = null
-    for arg in args.Ordered
-        if arg.Name == null and arg.Value isa string then
-            firstPlain = arg.Value
-            break
-        end if
-        if arg.Original == "-" then
-            // This is the interesting handling of "-" and "--" arguments.
-            firstPlain = "-"
-            break
-        end if
+    for arg in args.Original
+        firstPlain = arg
+        break
     end for
 
     if firstPlain == null then

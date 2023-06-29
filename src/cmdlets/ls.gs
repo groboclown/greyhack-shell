@@ -102,7 +102,7 @@ Ls.Run = function(context, args, session)
 
     if args.UnnamedEmpty then
         // A shorthand...
-        args.Unnamed.push({"Value": ".", "Name": null, "File": null, "Original": ""})
+        args.Unnamed.push({"Value": session.Cwd, "Name": null, "File": session.Computer.File(session.Cwd), "Original": ""})
     end if
 
     show_file = function(f, prefix)
