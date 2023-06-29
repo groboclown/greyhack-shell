@@ -1,4 +1,18 @@
 // A command parser.
+// Handles environment variable replacement, string quoting,
+// escaping, special page context replacement, multiple
+// commands on a single line, and argument separation.
+// Does not handle:
+//   - alias replacements;
+//   - file glob expansion;
+//   - sub-command execution;
+//   - multi-line statements.
+// To do this like a proper shell requires merging the
+// command execution callback and input reading into the
+// parser.
+// Right now, the file expansion happens in the cmdlets,
+// which is wrong because it means it doesn't take into
+// account quoting or escaping to prevent expansion.
 
 ParsedCommand = {}
 
@@ -138,11 +152,8 @@ ParsedCommand.Parse = function(text, env, context, defaultPage)
 
             else if c == ParsedCommand.CharClass.SE or c == "" then
                 // semi-colon; end the command.
-//print("<color #ff00ff>DEBUG EOC " + stateStack[-1].start + "-" + pos + "</color>")
                 stateStack[-1].cmd = text[stateStack[-1].start:pos]
-//print("<color #ff00ff>DEBUG == " + stateStack[-1].cmd + "</color>")
                 endCmd()
-//print("<color #ff00ff>DEBUG == total commands " + ret.len + "</color>")
                 stateStack[-1].state = 0
 
             else if c == ParsedCommand.CharClass.DL then

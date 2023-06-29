@@ -10,8 +10,6 @@ import_code("../libs/context/cli-helper.gs")
 import_code("../libs/format/formatted-str.gs")
 import_code("../libs/errors.gs")
 import_code("../libs/files/paths.gs")
-import_code("../libs/files/star-glob.gs")
-import_code("../libs/files/expand-args.gs")
 
 Rm = {}
 
@@ -100,27 +98,14 @@ Rm.Run = function(context, args, session)
     if ContextLib.Cli.TryHelp(args, Rm.usage, context) then return
     logger = ContextLib.Logger.New("pwd", context)
 
-    force = false
-    recurse = false
-    verbose = false
-    for arg in args.Ordered
-        if arg.Name != null then
-            if arg.Name.indexOf("r") != null then
-                recurse = true
-            end if
-            if arg.Name.indexOf("f") != null then
-                force = true
-            end if
-            if arg.Name.indexOf("v") != null then
-                verbose = true
-            end if
-        end if
-    end for
+    force = args.GetNamed("f") == true
+    recurse = args.GetNamed("r") == true or args.GetNamed("R") == true
+    verbose = args.GetNamed("v") == true
 
-    for match in FileLib.Expand.ExpandFiles(args.Ordered, session.Computer, session.Home, session.Cwd)
-        f = match.File
+    for arg in args.Unnamed
+        f = arg.File
         if f == null then
-            context.Errors.push(ErrorLib.Error.New("No such file: '{name}'", {"name": match.Value}))
+            context.Errors.push(ErrorLib.Error.New("No such file: '{name}'", {"name": arg.Value}))
         else if recurse then
             for err in Rm.RecursiveRemove(f, force, verbose, logger)
                 context.Errors.push(err)

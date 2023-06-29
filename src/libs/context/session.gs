@@ -80,6 +80,7 @@ ContextLib.GetSession = function(context, name=null)
         return null
     end if
     if name == null then name = context.CurrentSessionName
+    if name == null then return null
     if not context.NamedSessions.hasIndex(name) then
         context.Errors.push(ErrorLib.Error.New(
             "No such active session: {name}", {"source": "GetSession", "name": name}))

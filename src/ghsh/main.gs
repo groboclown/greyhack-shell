@@ -6,7 +6,6 @@ import_code("../libs/errors.gs")
 import_code("../libs/files/paths.gs")
 import_code("../libs/files/json.gs")
 import_code("../libs/files/star-glob.gs")
-import_code("../libs/files/expand-args.gs")
 import_code("../libs/context/get.gs")
 import_code("../libs/context/pages-create.gs")
 import_code("../libs/context/pages-read.gs")
@@ -51,11 +50,8 @@ while true
         print(line)
     end for
     line = user_input(screen[1])
-    if line == "exit" then
-        // Close the session.
-        ContextLib.CloseSession(context, session.Name)
-        continue
-    end if
+    // Emergency exit, in case the "exit" cmdlet fails.
+    if line == "QUIT" then exit
     cmdList = ParsedCommand.Parse(line, session.Env, context)
     for cmd in cmdList
         errCount = 0

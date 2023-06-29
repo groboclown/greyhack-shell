@@ -32,10 +32,7 @@ TestParse_simple_args = function(t)
     res = ParsedCommand.Parse("mycmd is fun", {}, {})
     t.AssertDeepEqual(
         [
-            ParsedCommand.Command.New("mycmd", [
-                ParsedCommand.Argument.New(null, "is", null, "is"),
-                ParsedCommand.Argument.New(null, "fun", null, "fun"),
-            ], []),
+            ParsedCommand.Command.New("mycmd", ["is", "fun"], []),
         ],
         res)
 end function
@@ -44,10 +41,7 @@ TestParse_named_args = function(t)
     res = ParsedCommand.Parse("mycmd --is --fun=yes", {}, {})
     t.AssertDeepEqual(
         [
-            ParsedCommand.Command.New("mycmd", [
-                ParsedCommand.Argument.New("is", true, null, "--is"),
-                ParsedCommand.Argument.New("fun", "yes", null, "--fun=yes"),
-            ], []),
+            ParsedCommand.Command.New("mycmd", ["--is", "--fun=yes"], []),
         ],
         res)
 end function
@@ -56,9 +50,7 @@ TestParse_example1 = function(t)
     res = ParsedCommand.Parse("+ ?", {}, {})
     t.AssertDeepEqual(
         [
-            ParsedCommand.Command.New("+", [
-                ParsedCommand.Argument.New(null, "?", null, "?"),
-            ], []),
+            ParsedCommand.Command.New("+", ["?"], []),
         ],
         res)
 end function
@@ -67,22 +59,14 @@ TestParse_env = function(t)
     res = ParsedCommand.Parse("mycmd is ${abc} good", {"abc": "tuna"}, {})
     t.AssertDeepEqual(
         [
-            ParsedCommand.Command.New("mycmd", [
-                ParsedCommand.Argument.New(null, "is", null, "is"),
-                ParsedCommand.Argument.New(null, "tuna", null, "tuna"),
-                ParsedCommand.Argument.New(null, "good", null, "good"),
-            ], []),
+            ParsedCommand.Command.New("mycmd", ["is", "tuna", "good"], []),
         ],
         res)
 
     res = ParsedCommand.Parse("mycmd is $abc good", {"abc": "tuna"}, {})
     t.AssertDeepEqual(
         [
-            ParsedCommand.Command.New("mycmd", [
-                ParsedCommand.Argument.New(null, "is", null, "is"),
-                ParsedCommand.Argument.New(null, "tuna", null, "tuna"),
-                ParsedCommand.Argument.New(null, "good", null, "good"),
-            ], []),
+            ParsedCommand.Command.New("mycmd", ["is", "tuna", "good"], []),
         ],
         res)
 end function
@@ -92,11 +76,7 @@ TestParse_context = function(t)
     res = ParsedCommand.Parse("mycmd is [1] good", {}, context)
     t.AssertDeepEqual(
         [
-            ParsedCommand.Command.New("mycmd", [
-                ParsedCommand.Argument.New(null, "is", null, "is"),
-                ParsedCommand.Argument.New(null, "tuna", null, "tuna"),
-                ParsedCommand.Argument.New(null, "good", null, "good"),
-            ], []),
+            ParsedCommand.Command.New("mycmd", ["is", "tuna", "good"], []),
         ],
         res)
 
@@ -105,11 +85,7 @@ TestParse_context = function(t)
     res = ParsedCommand.Parse("mycmd is [abc:2:name] good", {}, context)
     t.AssertDeepEqual(
         [
-            ParsedCommand.Command.New("mycmd", [
-                ParsedCommand.Argument.New(null, "is", null, "is"),
-                ParsedCommand.Argument.New(null, "rat", null, "rat"),
-                ParsedCommand.Argument.New(null, "good", null, "good"),
-            ], []),
+            ParsedCommand.Command.New("mycmd", ["is", "rat", "good"], []),
         ],
         res)
 end function

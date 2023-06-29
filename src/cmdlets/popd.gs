@@ -25,12 +25,6 @@ PopD.Run = function(context, args, session)
     if ContextLib.Cli.TryHelp(args, PopD.usage, context) then return
     logger = ContextLib.Logger.New("pwd", context)
 
-    if args.Unnamed.len <= 0 then
-        dirname = session.Home
-    else
-        dirname = args.Unnamed[0]
-    end if
-
     if session.DirStack.len <= 0 then
         logger.Warning("popd: directory stack empty")
         return

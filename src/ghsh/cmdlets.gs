@@ -1,4 +1,5 @@
 // Invokes the command-lets.
+// Includes argument expansion and simple alias replacement.
 // Returns the error results.
 
 // Requires:
@@ -27,10 +28,8 @@ CmdletManager.LoadConfig = function(section)
     self.SrcDir = section.Str("src-dir", self.SrcDir)
 end function
 
+// Run Runs the command (the parser return value) in the context + session.
 CmdletManager.Run = function(cmd, context, session)
-    // TODO the cmd.Args can include a sub-command that needs to run first and
-    //   have its result be passed to the main command.
-
     invoke = self.findCommand(cmd, session)
     if invoke == null then
         self.logger.Error("Could not find command {name}", {"name": cmd.Name})
@@ -38,9 +37,8 @@ CmdletManager.Run = function(cmd, context, session)
     end if
     context.Cmd = invoke.name
     context.Args = invoke.contextArgs
-    // print("Running [" + invoke.file.path + "] [" + invoke.launchArgs + "]")
-    // res = session.Shell.launch(invoke.file.path, invoke.launchArgs)
-    res = session.Shell.launch(invoke.file.path, self.mkLaunchArgs(cmd, session))
+    // print("Running [" + invoke.file.path + "]")
+    res = session.Shell.launch(invoke.file.path, self.mkLaunchArgs(invoke.contextArgs, session))
     if res != 1 then
         context.Errors.push(ErrorLib.Error.New("[{cmd}] exited with [{res}]", {"cmd": cmd.Name, "res": res}))
     end if
@@ -50,10 +48,17 @@ CmdletManager.Run = function(cmd, context, session)
 end function
 
 CmdletManager.findCommand = function(cmd, session)
-    // For now, just trivial aliasing.
-    // This needs to be plugged back into the parser.
+    // For now, just trivial aliasing.  An alias can be an array
+    // to force a pre-parsed array list.
     cmdName = cmd.Name
-    if self.Aliases.hasIndex(cmdName) then cmdName = self.Aliases[cmdName]
+    if self.Aliases.hasIndex(cmdName) then
+        cmdName = self.Aliases[cmdName]
+        if cmdName isa list then
+            cmd.Name = cmdName[0]
+            cmd.Args = cmdName[1:] + cmd.Args
+            cmdName = cmd.Name
+        end if
+    end if
 
     args = CmdletManager.ArgumentSet.New(cmd.Args, session.Computer, session.Home, session.Cwd)
 
@@ -75,26 +80,18 @@ CmdletManager.findCommand = function(cmd, session)
     return null
 end function
 
-CmdletManager.mkLaunchArgs = function(cmd, session)
+CmdletManager.mkLaunchArgs = function(args, session)
     ret = []
-    for arg in cmd.Args
-        val = arg.Original
-        if val.indexOf("*") != null then
-            // file expansion for free.
-            for item in FileLib.Expand.ExpandFiles([val], session.Computer, session.Home, session.Cwd)
-                if item.Name != null then
-                    ret.push(item.Name)
-                else
-                    ret.push(item.Value)
-                end if
-            end for
+    for arg in args.Ordered
+        argVal = arg.Value
         // Ignore arguments that can't be used as a launch argument.
         // An argument like "{name}" generates the error "Invalid character '{' in program parameters"
-        else if val.indexOf("{") == null and val.indexOf("[") == null then
-            ret.push(val)
+        if argVal.indexOf("{") == null and argVal.indexOf("[") == null then
+            ret.push(argVal)
         end if
     end for
-    return ret.join(" ")
+    joined = ret.join(" ")
+    return joined
 end function
 
 // CmdletManager.findInPath() Find the binary in one of the paths (array of strings)
@@ -138,14 +135,14 @@ CmdletManager.ArgumentSet.New = function(argList, computer, home, cwd)
     for arg in argList
         split = CmdletManager.splitArgument(arg)
         if split[0] == "--" then
-            ret.Ordered.push(arg[0])
+            ret.Ordered.push(CmdletManager.NamedValueArgument.New(null, arg[0], arg, null))
             lastWasDash = true
             continue
         end if
 
         // If this is a short argument form, then there's no file parsing.
-        if lastWasDash and split[3] != null then
-            ret.Ordered.push(arg[0])
+        if not lastWasDash and split[3] != null then
+            ret.Ordered.push(CmdletManager.NamedValueArgument.New(null, arg[0], arg, null))
             for n in split[3]
                 ret.Named[n] = CmdletManager.NamedValueArgument.New(n, null, split[0], null)
             end for
@@ -170,13 +167,14 @@ CmdletManager.ArgumentSet.New = function(argList, computer, home, cwd)
             // Check if this expanded to an exact filename.
             f = computer.File(star)
             if f != null then
+                parg = CmdletManager.NamedValueArgument.New(name, f.path, arg, f)
+                ret.Ordered.push(parg)
                 if name == null then
-                    ret.Ordered.push(f.path)
-                    ret.Unnamed.push(f.path)
+                    ret.Unnamed.push(parg)
                     ret.Files.push(f)
                 else
-                    ret.Ordered.push("--" + name + "=" + f.path)
-                    ret.Named[name] = CmdletManager.NamedValueArgument.New(name, f.path, arg, f)
+                    ret.Ordered.push(parg)
+                    ret.Named[name] = parg
                 end if
                 continue
             end if
@@ -185,37 +183,42 @@ CmdletManager.ArgumentSet.New = function(argList, computer, home, cwd)
             for match in FileLib.Glob.MatchStar(star, computer)
                 f = computer.File(match)
                 if f != null then
+                    parg = CmdletManager.NamedValueArgument.New(name, f.path, arg, f)
+                    ret.Ordered.push(parg)
                     if name == null then
-                        ret.Ordered.push(f.path)
-                        ret.Unnamed.push(f.path)
+                        ret.Unnamed.push(parg)
                         ret.Files.push(f)
                     else
-                        ret.Ordered.push("--" + name + "=" + f.path)
-                        ret.Named[name] = CmdletManager.NamedValueArgument.New(name, f.path, arg, f)
+                        ret.Ordered.push(parg)
+                        ret.Named[name] = parg
                     end if
                     found = true
                 end if
             end for
             if not found then
+                parg = CmdletManager.NamedValueArgument.New(name, star, arg, null)
+                ret.Ordered.push(parg)
                 if name == null then
-                    ret.Ordered.push(star)
-                    ret.Unnamed.push(star)
+                    ret.Unnamed.push(parg)
                 else
-                    ret.Ordered.push("--" + name + "=" + star)
-                    ret.Named[name] = CmdletManager.NamedValueArgument.New(name, star, arg, null)
+                    ret.Named[name] = parg
                 end if
             end if
-        else if name != null and name.len > 0
+        else if name != null and name.len > 0 then
             // No value, so just set the name
-            ret.Ordered.push("--" + name)
-            ret.Named[name] = CmdletManager.NamedValueArgument.New(name, value, arg, null)
+            parg = CmdletManager.NamedValueArgument.New(name, value, arg, null)
+            ret.Ordered.push(parg)
+            ret.Named[name] = parg
         else
             // Just add it to the ordered list, whatever it is.
-            ret.Ordered.push(arg)
+            parg = CmdletManager.NamedValueArgument.New(null, arg, arg, null)
+            ret.Ordered.push(parg)
             // And the unnamed list.
-            ret.Unnamed.push(arg)
+            ret.Unnamed.push(parg)
         end if
     end for
+
+    ret.Empty = ret.Ordered.len <= 0
     ret.UnnamedEmpty = ret.Unnamed.len <= 0
     ret.FilesEmpty = ret.Files.len <= 0
     return ret
@@ -226,7 +229,11 @@ CmdletManager.ArgumentSet.ContainsValue = function(name)
 end function
 
 CmdletManager.ArgumentSet.GetNamed = function(name)
-    if self.Named.hasIndex(name) then return self.Named[name]
+    if self.Named.hasIndex(name) then
+        val = self.Named[name].Value
+        if val == null then return true
+        return val
+    end if
     return null
 end function
 

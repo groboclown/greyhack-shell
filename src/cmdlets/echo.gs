@@ -28,15 +28,13 @@ Echo.Run = function(context, args)
     if page == null then
         value = ""
         first = true
-        for arg in args.Ordered
-            if arg.Name == null then
-                if first then
-                    first = false
-                else
-                    value = value + " "
-                end if
-                value = value + arg.Original
+        for arg in args.Unnamed
+            if first then
+                first = false
+            else
+                value = value + " "
             end if
+            value = value + arg.Value
         end for
         logger = ContextLib.Logger.New("echo", context)
         logger.Info(value)

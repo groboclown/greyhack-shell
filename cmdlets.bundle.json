@@ -30,6 +30,11 @@
     },
     {
         "type": "compile",
+        "local": "src/cmdlets/exit.gs",
+        "target": "~/bin/cmdlets/exit"
+    },
+    {
+        "type": "compile",
         "local": "src/cmdlets/help.gs",
         "target": "~/bin/cmdlets/help"
     },

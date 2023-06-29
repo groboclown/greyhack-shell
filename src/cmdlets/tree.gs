@@ -10,8 +10,6 @@ import_code("../libs/context/cli-helper.gs")
 import_code("../libs/format/formatted-str.gs")
 import_code("../libs/errors.gs")
 import_code("../libs/files/paths.gs")
-import_code("../libs/files/star-glob.gs")
-import_code("../libs/files/expand-args.gs")
 
 Tree = {}
 
@@ -97,46 +95,34 @@ Tree.Run = function(context, args, session)
 
     ContextLib.CreatePage(context, Tree.PageName, Tree.Meta)
 
-    suffix = false
-    hidden = false
-    showfiles = true
+    suffix = args.GetNamed("F") == true
+    hidden = args.GetNamed("a") == true
+    showfiles = args.GetNamed("d") != true
     deepdirs = true
     maxDepth = 99
-    nonFlagCount = 0
-    for arg in args.Ordered
-        if arg.Name == "max" then
-            if arg.Value isa string then
-                maxDepth = floor(arg.Value)
-            else if arg.Value isa number then
-                maxDepth = floor(arg.Value)
-            else
-                maxDepth = 0
-            end if
-            if maxDepth <= 0 then
-                context.Errors.push(ErrorLib.Error.New("Invalid max depth value: '{value}'", {"value": arg.Value}))
-                maxDepth = 1
-            end if
-        else if arg.Name != null then
-            if arg.Name.indexOf("F") != null then
-                suffix = true
-            end if
-            if arg.Name.indexOf("a") != null then
-                hidden = true
-            end if
-            if arg.Name.indexOf("d") != null then
-                showfiles = false
-            end if
-            if arg.Name.indexOf("c") != null then
-                ContextLib.ClearPage(Tree.PageName)
-            end if
+    
+    if args.GetNamed("max") != null then
+        val = args.GetNamed("max")
+        if val isa string then
+            maxDepth = floor(val.val)
+        else if arg.Value isa number then
+            maxDepth = floor(val)
         else
-            nonFlagCount = nonFlagCount + 1
+            maxDepth = 0
         end if
-    end for
+        if maxDepth <= 0 then
+            context.Errors.push(ErrorLib.Error.New("Invalid max depth value: '{value}'", {"value": val}))
+            maxDepth = 1
+        end if
+    end if
 
-    if nonFlagCount <= 0 then
+    if args.GetNamed("c") then
+        ContextLib.ClearPage(Tree.PageName)
+    end if
+
+    if args.Unnamed <= 0 then
         // A shorthand...
-        args.Ordered.push({"Value": ".", "Name": null, "Command": null, "Original": ""})
+        args.Ordered.push({"Value": ".", "Name": null, "File": null, "Original": ""})
     end if
 
     show_file = function(f, prefix, depth)
@@ -166,12 +152,12 @@ Tree.Run = function(context, args, session)
         })
     end function
 
-    for match in FileLib.Expand.ExpandFiles(args.Ordered, session.Computer, session.Home, session.Cwd)
-        f = match.File
+    for arg in args.Unnamed
+        f = arg.File
         if f == null then
-            context.Errors.push(ErrorLib.Error.New("No such file: '{name}'", {"name": match.Value}))
+            context.Errors.push(ErrorLib.Error.New("No such file: '{name}'", {"name": arg.Value}))
         else
-            stack = [[match.File, 1, ""]]
+            stack = [[arg.File, 1, ""]]
             while stack.len > 0
                 next_node = stack.pop()
                 f = next_node[0]

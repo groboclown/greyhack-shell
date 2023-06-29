@@ -27,7 +27,7 @@ Clear.Run = function(context, args)
     if ContextLib.Cli.TryHelp(args, Clear.usage, context) then return
     doClose = args.GetNamed("close") == true
 
-    if args.Unnamed.len <= 0 then
+    if args.UnnamedEmpty then
         if context.Pages.hasIndex(context.ActivePage) then
             if doClose then
                 ContextLib.ClosePage(context, context.ActivePage)
@@ -45,8 +45,8 @@ Clear.Run = function(context, args)
         end while
     end if
 
-    for arg in args.Ordered
-        if arg.Name == null and arg.Value != null then
+    for arg in args.Unnamed
+        if arg.Value != null then
             ContextLib.ClearPage(context, arg.Value)
         end if
     end for

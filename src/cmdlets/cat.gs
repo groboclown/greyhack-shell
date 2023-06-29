@@ -10,8 +10,6 @@ import_code("../libs/context/cli-helper.gs")
 import_code("../libs/format/formatted-str.gs")
 import_code("../libs/errors.gs")
 import_code("../libs/files/paths.gs")
-import_code("../libs/files/star-glob.gs")
-import_code("../libs/files/expand-args.gs")
 
 Cat = {}
 
@@ -68,20 +66,19 @@ Cat.Run = function(context, args, session)
         })
     end if
 
-    for match in FileLib.Expand.ExpandFiles(args.Unnamed, session.Computer, session.Home, session.Cwd)
-        f = match.File
-        if f == null then
+    for arg in args.Unnamed
+        if arg.File == null then
             context.Errors.push(ErrorLib.Error.New("No such file: '{name}'", {
-                "name": match.Value,
+                "name": arg.Original,
             }))
-        else if f.is_folder then
+        else if arg.File.is_folder then
             // just skip it
-        else if f.is_binary then
+        else if arg.File.is_binary then
             context.Errors.push(ErrorLib.Error.New("Cannot read: '{name}'", {
-                "name": match.Value,
+                "name": arg.Original,
             }))
         else
-            data = f.get_content
+            data = arg.File.get_content
             rows = data.split(char(10))
             count = 0
             for line in rows
@@ -90,7 +87,7 @@ Cat.Run = function(context, args, session)
                     logger.Info(line)
                 else
                     ContextLib.SendToPage(context, page, {
-                        "filename": match.Path,
+                        "filename": arg.File.path,
                         "line": line,
                         "lineno": count,
                     })

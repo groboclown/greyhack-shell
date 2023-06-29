@@ -42,3 +42,9 @@ You'll need the controller terminal to have the focus in order to play.  To play
 * Right arrow - move the block right.
 * Down arrow - advance the block down.
 * Space or up arrow - rotate the block.
+
+
+# Bugs
+
+* The shapes aren't right.  Some rotations don't have them appear right.
+* There's a super annoying flicker.  The refresh rate needs to be set just right.

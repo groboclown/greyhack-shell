@@ -10,8 +10,6 @@ import_code("../libs/context/cli-helper.gs")
 import_code("../libs/format/formatted-str.gs")
 import_code("../libs/errors.gs")
 import_code("../libs/files/paths.gs")
-import_code("../libs/files/star-glob.gs")
-import_code("../libs/files/expand-args.gs")
 
 Ls = {}
 
@@ -94,38 +92,17 @@ Ls.Run = function(context, args, session)
 
     ContextLib.CreatePage(context, Ls.PageName, Ls.Meta)
 
-    suffix = false
-    hidden = false
-    pdirs = false
-    deepdirs = true
-    nonFlagCount = 0
-    for arg in args.Ordered
-        if arg.Name != null then
-            if arg.Name.indexOf("F") != null then
-                suffix = true
-            end if
-            if arg.Name.indexOf("a") != null then
-                hidden = true
-                pdirs = true
-            end if
-            if arg.Name.indexOf("A") != null then
-                hidden = true
-                pdirs = false
-            end if
-            if arg.Name.indexOf("d") != null then
-                deepdirs = false
-            end if
-            if arg.Name.indexOf("c") != null then
-                ContextLib.ClearPage(Ls.PageName)
-            end if
-        else
-            nonFlagCount = nonFlagCount + 1
-        end if
-    end for
+    suffix = args.GetNamed("F") == true
+    hidden = args.GetNamed("a") == true or args.GetNamed("A") == true
+    pdirs = args.GetNamed("a") == true and args.GetNamed("A") != true
+    deepdirs = args.GetNamed("d") != true
+    if args.GetNamed("c") == true then
+        ContextLib.ClearPage(Ls.PageName)
+    end if
 
-    if nonFlagCount <= 0 then
+    if args.UnnamedEmpty then
         // A shorthand...
-        args.Ordered.push({"Value": ".", "Name": null, "Command": null, "Original": ""})
+        args.Unnamed.push({"Value": ".", "Name": null, "File": null, "Original": ""})
     end if
 
     show_file = function(f, prefix)
@@ -152,20 +129,20 @@ Ls.Run = function(context, args, session)
         })
     end function
 
-    for match in FileLib.Expand.ExpandFiles(args.Ordered, session.Computer, session.Home, session.Cwd)
-        f = match.File
-        if match.Value == "." then
+    for arg in args.Unnamed
+        if arg.Original == "." then
             prefix = ""
         else
             // This isn't right.  If the argument is a file,
             // then it should just be the value.  If the argument is
             // something like "Downloads/*.txt", then the prefix needs to
             // be "Downloads/".
-            prefix = match.Value + "/"
+            prefix = arg.Value + "/"
         end if
         // TODO support pdirs
+        f = arg.File
         if f == null then
-            context.Errors.push(ErrorLib.Error.New("No such file: '{name}'", {"name": match.Value}))
+            context.Errors.push(ErrorLib.Error.New("No such file: '{name}'", {"name": arg.Value}))
         else if not hidden and f.name[0] == "." then
             // Don't show hidden files
             continue
@@ -186,6 +163,7 @@ Ls.Run = function(context, args, session)
             show_file(f, prefix)
         end if
     end for
+
     context.ActivePage = Ls.PageName
 end function
 
@@ -194,7 +172,7 @@ Ls.Main = function()
     args = context.Args
     session = ContextLib.GetSession(context)
     Ls.Run(context, args, session)
-    exit
+    return
 end function
 
 if locals == globals then Ls.Main()

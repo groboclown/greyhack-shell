@@ -7,7 +7,6 @@ import_code("../libs/context/pages-create.gs")
 import_code("../libs/context/pages-send.gs")
 import_code("../libs/context/cli-helper.gs")
 import_code("../libs/files/paths.gs")
-import_code("../libs/files/expand-args.gs")
 import_code("../libs/format/formatted-str.gs")
 
 PushD = {}
@@ -27,20 +26,14 @@ PushD.Run = function(context, args, session)
     if ContextLib.Cli.TryHelp(args, PushD.usage, context) then return
     logger = ContextLib.Logger.New("pwd", context)
 
-    if args.Unnamed.len <= 0 then
-        dirname = session.Home
-    else
-        dirname = args.Unnamed[0]
-    end if
-
     oldDir = session.Cwd
 
-    for match in FileLib.Expand.ExpandFiles(args.Ordered, session.Computer, session.Home, session.Cwd)
-        f = match.File
+    for arg in args.Unnamed
+        f = arg.File
         if f == null then
-            context.Errors.push(ErrorLib.Error.New("No such directory: '{name}'", {"name": match.Value}))
+            context.Errors.push(ErrorLib.Error.New("No such directory: '{name}'", {"name": arg.Value}))
         else if not f.is_folder then
-            context.Errors.push(ErrorLib.Error.New("Not a directory: '{name}'", {"name": match.Value}))
+            context.Errors.push(ErrorLib.Error.New("Not a directory: '{name}'", {"name": arg.Value}))
         else
             session.Cwd = f.path
             if f.path == session.Home then
