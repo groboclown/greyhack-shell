@@ -1,8 +1,7 @@
 // TIMING CONSTANTS
 // adjust these to make the game run at an appropriate rate.
 BASE_SPEED = 40
-DELAY_AMOUNT = 1000
-DELAY_AMOUNT_2 = 10
+FRAMES_PER_SECOND = 30
 
 if params.len <= 0 or params[0] == "-h" or params[0] == "--help" then
     print("A prototype at a falling blocks game.")
@@ -63,6 +62,7 @@ DisplayProgram = function(controlFile)
         "boardWidth": 12,
         "boardHeight": 10,
         "border": "",
+        "previewBorder": "",
         "board": [],
         "future_bag": [],
 
@@ -72,6 +72,7 @@ DisplayProgram = function(controlFile)
         "brickY": 0,
         "brickShape": 0,
         "brickRotate": 0,
+        "previewBrick": null,
 
         // this is basically how hard the game is.
         "speed": BASE_SPEED,
@@ -101,7 +102,8 @@ DisplayProgram = function(controlFile)
         // blocks are 1 tall, 2 characters wide
         border = border + char(183) + char(183)
     end for
-    state.border = "<size=1em><color=#909090>" + border + char(183)
+    state.border = "<size=1em><color=#909090>" + border + char(183) + "</color></size>"
+    state.previewBorder = "  <size=1em>" + char(183) + char(183) + char(183) + char(183) + char(183) + char(183) + char(183) + char(183) + char(183) + char(183) + "</color></size>"
 
     HandleInput(controlFile, state)
 
@@ -123,10 +125,10 @@ BRICK_SHAPES = [
     // Must be centered to allow easy rotation
     // square.  Does not rotate.
     [
-        [1, 0, 0, 1, 1, 0, 1, 1],
-        [1, 0, 0, 1, 1, 0, 1, 1],
-        [1, 0, 0, 1, 1, 0, 1, 1],
-        [1, 0, 0, 1, 1, 0, 1, 1],
+        [0, 0, 0, 1, 1, 0, 1, 1],
+        [0, 0, 0, 1, 1, 0, 1, 1],
+        [0, 0, 0, 1, 1, 0, 1, 1],
+        [0, 0, 0, 1, 1, 0, 1, 1],
     ],
     // stick
     [
@@ -139,14 +141,14 @@ BRICK_SHAPES = [
     [
         [-1, -1, -1,  0,  0,  0,  1,  0],
         [ 0, -1,  1, -1,  0,  0,  0,  1],
-        [-2,  0, -1,  0,  1,  0,  1,  1],
+        [-1,  0,  0,  0,  1,  0,  1,  1],
         [-1,  1,  0,  1,  0,  0,  0, -1],
     ],
     // L 2
     [
         [-1,  0,  0,  0,  1,  0,  1, -1],
         [ 0, -1,  0,  0,  0,  1,  1,  1],
-        [-1, -1,  0, -1,  1, -1,  1,  0],
+        [-1,  1, -1,  0,  0,  0,  1,  0],
         [-1, -1,  0, -1,  0,  0,  0,  1],
     ],
     // T
@@ -154,21 +156,21 @@ BRICK_SHAPES = [
         [-1,  0,  0, -1,  0,  0,  1,  0],
         [ 0, -1,  0,  0,  0,  1,  1,  0],
         [-1,  0,  0,  1,  0,  0,  1,  0],
-        [-1,  0,  0, -1,  0,  0,  0, -1],
+        [-1,  0,  0, -1,  0,  0,  0,  1],
     ],
     // S1
     [
         [-1,  0,  0,  0,  0,  1,  1,  1],
-        [ 0,  0,  0,  1,  1,  0,  1, -1],
+        [ 0, -1,  0,  0, -1,  0, -1,  1],
         [-1,  0,  0,  0,  0,  1,  1,  1],
-        [ 0,  0,  0,  1,  1,  0,  1, -1],
+        [ 0, -1,  0,  0, -1,  0, -1,  1],
     ],
     // S2
     [
         [-1,  1,  0,  1,  0,  0,  1,  0],
-        [-1,  0,  0,  0,  1,  0,  1,  1],
+        [-1, -1, -1,  0,  0,  0,  0,  1],
         [-1,  1,  0,  1,  0,  0,  1,  0],
-        [-1,  0,  0,  0,  1,  0,  1,  1],
+        [-1, -1, -1,  0,  0,  0,  0,  1],
     ],
 ]
 BRICK_SHAPE_COLOR = [
@@ -209,7 +211,9 @@ InitBrick = function(state)
     // Officially, the brick shape is supposed to come from
     // a large bag, to prevent an infinite ordering of specific
     // shapes that cause an unsolvable board.
-    if state.future_bag.len <= 0 then
+    // We need at least 1 item in the bag at all times, for the
+    // preview.
+    if state.future_bag.len < 2 then
         // Fill the bag with a large number of same number items.
         for i in range(0, BRICK_SHAPES.len - 1)
             for j in range(0, 20)
@@ -229,7 +233,10 @@ InitBrick = function(state)
         end for
     end if
 
-    state.brickShape = state.future_bag.pop()
+    if state.previewBrick == null then state.previewBrick = state.future_bag.pop()
+
+    state.brickShape = state.previewBrick
+    state.previewBrick = state.future_bag.pop()
     state.brickRotate = 0
     state.brickX = floor(state.boardWidth / 2)
     state.brickY = 1
@@ -250,6 +257,8 @@ InitGame = function(state)
     end for
     state.board = board
 
+    state.future_bag = []
+    state.previewBrick = null
     InitBrick(state)
 end function
 
@@ -259,9 +268,28 @@ DrawFrame = function(state)
     lines = [
         "Score: " + state.score + "   Level: " + state.level + "   Hi Score: " + state.hiscore,
         "Debug: " + state.last + " " + state.lastAction + " " + state.brickY + " " + state.timer,
-        state.border,
+        state.border + state.previewBorder,
     ]
+    previewLines = []
+    brickAdj = BRICK_SHAPES[state.previewBrick][0]
+    color = BRICK_SHAPE_COLOR[state.previewBrick]
+    for y in range(0, 3)
+        line = "  |"
+        for x in range(0, 3)
+            val = "  "
+            for i in range(0, 3)
+                if brickAdj[i * 2] + 1 == x and brickAdj[(i * 2) + 1] + 1 == y then
+                    val = "<mark=" + color + "ff><color=" + color + ">PP</color></mark>"
+                    break
+                end if
+            end for
+            line = line + val
+        end for
+        previewLines.push(line + "|")
+    end for
+    previewLines.push(state.previewBorder)
     brickAdj = BRICK_SHAPES[state.brickShape][state.brickRotate]
+    color = BRICK_SHAPE_COLOR[state.brickShape]
     for y in range(0, state.boardHeight)
         line = "<size=1em>|"
         for x in range(0, state.boardWidth)
@@ -274,14 +302,16 @@ DrawFrame = function(state)
                     brickX = state.brickX + brickAdj[i * 2]
                     brickY = state.brickY + brickAdj[(i * 2) + 1]
                     if y == brickY and x == brickX then
-                        val = "<mark=" + BRICK_SHAPE_COLOR[state.brickShape] + "ff><color=" + BRICK_SHAPE_COLOR[state.brickShape] + ">MM</color></mark>"
+                        val = "<mark=" + color + "ff><color=" + color + ">MM</color></mark>"
                         break
                     end if
                 end for
             end if
             line = line + val
         end for
-        lines.push(line + "|")
+        line = line + "|"
+        if y < previewLines.len then line = line + previewLines[y]
+        lines.push(line)
     end for
     clear_screen
     for line in lines
@@ -336,7 +366,7 @@ GamePhysicsFrame = function(state)
             brickX = state.brickX + brickAdj[i * 2]
             // 1 down for gravity
             brickY = state.brickY + 1 + brickAdj[(i * 2) + 1]
-            if brickY >= state.boardHeight or state.board[brickY][brickX] != null then
+            if brickY > state.boardHeight or state.board[brickY][brickX] != null then
                 // collision
                 if brickY < colY then colY = brickY
                 hasCollision = true
@@ -426,6 +456,7 @@ GameSystems = function(state)
                     for x in range(0, state.boardWidth)
                         state.board[up + 1][x] = state.board[up][x]
                     end for
+                    up = up - 1
                 end while
                 // Because this is moving down, it doesn't
                 // need to be checked again.
@@ -505,7 +536,7 @@ DoIntro = function(controlFile, state)
 end function
 
 DelaySomehow = function()
-    get_shell.launch(launch_path, params[0] + " --sekret-delay")
+    wait(1.0 / FRAMES_PER_SECOND)
 end function
 
 
@@ -516,14 +547,6 @@ if params.len == 1 then
     ControllerProgram(f)
 else if params.len == 2 and params[1] == "-d" then
     DisplayProgram(f)
-else if params.len == 2 and params[1] == "--sekret-delay" then
-    for delayJ in range(0, DELAY_AMOUNT_2)
-        delayer = []
-        for delayI in range(0, DELAY_AMOUNT)
-            delayer = delayer + [delayI]
-        end for
-    end for
-    exit()
 else
     exit("Invalid usage.  Run with --help for more information.")
 end if

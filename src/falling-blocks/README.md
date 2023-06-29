@@ -41,7 +41,9 @@ You'll need the controller terminal to have the focus in order to play.  To play
 * Left arrow - move the block left.
 * Right arrow - move the block right.
 * Down arrow - advance the block down.
-* Space or up arrow - rotate the block.
+* up arrow - rotate the block.
+* z - rotate the block one way.
+* x - rotate the block the other way.
 
 
 # Bugs
