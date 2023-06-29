@@ -2,6 +2,8 @@
 
 A block movement style game, for the Grey Hack game.
 
+[Preview Image](falling-bricks.gif) *Warning - flashes heavily; standard seizure warnings apply.*
+
 
 ## Installing
 
@@ -48,5 +50,4 @@ You'll need the controller terminal to have the focus in order to play.  To play
 
 # Bugs
 
-* The shapes aren't right.  Some rotations don't have them appear right.
 * There's a super annoying flicker.  The refresh rate needs to be set just right.
